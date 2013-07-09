@@ -75,3 +75,32 @@ In general it should be avoided but you can also clear the call log if required,
 ```coffeescript
 dbh.clearLog()
 ```
+
+# The Model
+
+There are three basic constructs that make up the model, all of which can be inherited and extended in order to make the system behave in the way you want.  These are:  tables, columns and records.
+
+A column defines the data that can be stored in a single database column.  It has a type and various properties that determine how the system will interact with it.
+
+A table defines how a collection of columns are grouped together to represent a table within the database.  This adds an additional layer of properties and interactions with the programmer.
+
+Finally a record is a combination of a table definition with its column definitions and a set of raw data returned from the database.  This represents a tuple of data within the database and can be manipulated by the programmer before sending it back to the database.
+
+The best way of learning is to start doing, so let's define a model and interact with it:
+
+```coffeescript
+class User extends dba.table
+	@dbTable:					'usr'
+	@columns:
+		id:						new dba.serial()
+		username:				new dba.varchar(40).notNull()
+		password:				new dba.password('salt').notNull()
+		salt:					new dba.varchar(100).notNull()
+		created:				new dba.timestamp().defaultNow()
+		sex:					new dba.enum('male', 'female', 'other').notNull().setDbType('sex_type')
+	@primaryKeys:				['id']
+
+User.get dbh, 1, (err, u) ->
+	u.dump()
+```
+

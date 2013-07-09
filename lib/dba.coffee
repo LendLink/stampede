@@ -504,7 +504,7 @@ class exports.table
 			if options.sort?
 				o = []
 				for f of options.sort
-					throw "Unknown sort column #{f}" unless @columns[k]?
+					throw "Unknown sort column #{f}" unless @columns[f]?
 					throw "Invalid sort details #{options.sort[f]}" unless options.sort[f].match /^\s*(asc|desc)(\s+nulls\s+(first|last))?\s*$/i
 					o.push "#{@columns[f].getDbFieldName()} #{options.sort[f]}"
 				options.order = o.join(', ')
