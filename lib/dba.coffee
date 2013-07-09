@@ -9,6 +9,8 @@ utils = require './utils'
 moment = require 'moment'
 sha1 = require 'sha1'
 async = require 'async'
+pg = require 'pg'
+
 
 
 ###
@@ -73,11 +75,21 @@ class exports.cache
 # Database connection details
 ###
 
+exports.connect = (conString, callback, cache) ->
+	exports.connection.connect(conString, callback, cache)
+
 class exports.connection
 	pgDbh:		undefined
 	pgDone:		undefined
 	cacheObj:	undefined
 	queryLog:	undefined
+
+	@connect: (conString, callback, cache) ->
+		pg.connect conString, (err, client, done) ->
+			if err? then return callback err
+
+			dbh = new exports.connection(client, done, cache)
+			callback undefined, dbh
 
 	constructor: (dbh, done, cache) ->
 		if cache?
