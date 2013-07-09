@@ -11,9 +11,8 @@ This allows you to balance performance and flexibility with just getting the job
 
 dba is automatically imported by stampede.  In order to reduce typing you can always assign dba to a local variable.
 
-```javascript
-stampede = require '../lib/stampede'
-
+```coffeescript
+stampede = require 'stampede'
 dba = stampede.dba
 ```
 
@@ -23,7 +22,7 @@ Behind the scenes dba uses the pg library to connect to Postgres and talk to the
 
 To create a new connection you can either ask dba to connect or connect using pg and pass the client to dba:
 
-```javascript
+```coffeescript
 # Preferred method for connecting
 dba.connect "pg://dbatest:dbatest88@localhost/dbatest", (err, dbh) ->
 	if err? then throw "Argh, a horrible error: #{err}"
@@ -43,7 +42,7 @@ The pg library requires an explicit disconnect call in order to release the conn
 
 To disconnect from the database simply call the disconnect method on the database handle object.
 
-```javascript
+```coffeescript
 dbh.disconnect()
 ```
 
@@ -51,7 +50,7 @@ dbh.disconnect()
 
 You can still bypass dba and run queries directly.  Simply call the query method of the db handle in the same way you would call query on a pg connection.
 
-```javascript
+```coffeescript
 dbh.query 'SELECT now() + $1::interval as t', ['1 month'], (err, res) ->
     if err? then throw "The database is unimpressed: #{err}"
 
@@ -66,13 +65,13 @@ If you need to bypass this mechanism then you can still query the database using
 
 To retrieve a list of all the queries that have been logged:
 
-```javascript
+```coffeescript
 callLog = dbh.queries()
 console.log callLog
 ```
 
 In general it should be avoided but you can also clear the call log if required, for example if a connection is being reused between jobs or in long lived processes:
 
-```javascript
+```coffeescript
 dbh.clearLog()
 ```
