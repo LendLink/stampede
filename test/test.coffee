@@ -4,18 +4,9 @@ user = require './User.coffee'
 stampede = require '../lib/stampede'
 dba = stampede.dba
 
-
-# UserModel.getUserById 1, (err, result) ->
-# 	console.log "getUserById #1 : #{result.get("id")} : #{result.get("firstname")} #{result.get("lastname")}"
-
-# UserModel.getUsers (err, result) ->
-# 	for row in result
-# 		console.log "getUsers : #{row.get("firstname")} #{row.get("lastname")}"
-
-# UserModel.getUsersByFirstName "super", (err, result) ->
-# 	for row in result
-# 		console.log "getUsersByFirstName : #{row.get("firstname")} #{row.get("lastname")}"
-
+###
+Update this with a real connection string - tests will create and drop test data automagically
+###
 connstring = "pg://alex:XXXX@127.0.0.1/demo"
 
 beforeEach (done) ->
