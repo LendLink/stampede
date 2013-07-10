@@ -519,8 +519,8 @@ class exports.table
 
 				dbh.query sql, options.bind, (err, pRes) =>
 					pagerInfo = {
-						totalRows:		pRes.rowCount
-						totalPages:		Math.floor(pRes.rowCount / options.pager.perPage) + 1
+						totalRows:		pRes.rows[0].count
+						totalPages:		Math.floor(pRes.rows[0].count / options.pager.perPage) + 1
 						page:			options.pager.page
 						perPage:		options.pager.perPage
 						rows:			[]
