@@ -91,6 +91,17 @@ describe "updating", ->
 describe "inserting", ->
 	it "creating new record saves to database"
 
+describe "pagination", ->
+	it "totalRows and totalPages show correct values", (done) ->
+		dba.connect connstring, (err, handle) ->
+			user.select handle, {
+				pager: {page: 1, perPage: 2}
+			}, (err, result) ->
+				#should be 3 pages of two, 6 items total
+				assert.equal(result.totalRows, 6)
+				assert.equal(result.totalPages, 3)
+				done()
+
 
 #put up and tear down for the database test script
 clearDb = (next) ->
