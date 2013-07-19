@@ -413,6 +413,16 @@ class exports.table
 
 	@fromJson: (json, allowFieldList) ->
 		@initialise()
+
+		if Array.isArray(json)
+			result = []
+			for j in json
+				result.push @_fromJson(j, allowFieldList)
+			return result
+		else
+			return @_fromJson(json, allowFieldList)
+
+	@_fromJson: (json, allowFieldList) ->
 		if allowFieldList?
 			allow = {}
 			for f in allowFieldList
@@ -480,13 +490,19 @@ class exports.table
 			else
 				@columns[col].preselectEvent(dbh, @, asyncCallback)
 
+	@getSelectFields : (prefix) ->
+		selectColumns = []
+		for c of @columns when @columns[c].include('select')
+			if prefix?
+				selectColumns.push prefix+"."+@columns[c].getDbFieldName()
+			else
+				selectColumns.push @columns[c].getDbFieldName()
+		return selectColumns
 
 	@select: (dbh, options, callback) ->
 		@initialise()
 
-		selectColumns = []
-		for c of @columns when @columns[c].include('select')
-			selectColumns.push @columns[c].getDbFieldName()
+		selectColumns = @getSelectFields()
 
 		@preselectEvent dbh, =>
 			unless callback? then return
