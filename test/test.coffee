@@ -95,19 +95,51 @@ describe "pagination", ->
 	it "totalRows and totalPages show correct values", (done) ->
 		dba.connect connstring, (err, handle) ->
 			user.select handle, {
-				pager: {page: 1, perPage: 2}
+				pager: 
+					page : 1
+					perPage : 2
 			}, (err, result) ->
+				if err?
+					throw err
+				handle.disconnect()
 				#should be 3 pages of two, 6 items total
 				assert.equal(result.totalRows, 6)
 				assert.equal(result.totalPages, 3)
 				done()
 
+describe "password field", ->
+	it "generates a salt of the correct length", (done) ->
+		dba.connect connstring, (err, handle) ->
+			user.get handle, 1, (err, result) ->
+				if err?
+					throw err
+				handle.disconnect()
+				result.set('password','new password')
+				assert.equal(result.get('salt').length, 48)
+				done()
+	it "subsequent calls to reset password generates different salt", (done) ->
+		dba.connect connstring, (err, handle) ->
+			user.get handle, 1, (err, result) ->
+				if err?
+					throw err
+				handle.disconnect()
+				result.set('password', 'new password')
+				currentSalt = result.get('salt')
+				result.set('password', 'another password')
+				assert.notEqual(result.get('salt'), currentSalt)
+				done()
 
 #put up and tear down for the database test script
 clearDb = (next) ->
 	toDo = []
 	toDo.push "drop table if exists users"
-	toDo.push "create table users (id serial, firstname character varying(100) not null, lastname character varying(100) not null, description text)"
+	toDo.push "create table users (
+		id serial,
+		firstname character varying(100) not null,
+		lastname character varying(100) not null,
+		password character varying(100),
+		salt character varying(100),
+		description text)"
 	toDo.push "alter table users add primary key (id)"
 	toDo.push "insert into users(firstname, lastname, description)
 				select 'super', 'man','not sure about the pants'

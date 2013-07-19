@@ -10,6 +10,7 @@ moment = require 'moment'
 sha1 = require 'sha1'
 async = require 'async'
 pg = require 'pg'
+crypto = require 'crypto'
 
 
 
@@ -520,7 +521,7 @@ class exports.table
 				dbh.query sql, options.bind, (err, pRes) =>
 					pagerInfo = {
 						totalRows:		pRes.rows[0].count
-						totalPages:		Math.floor(pRes.rows[0].count / options.pager.perPage) + 1
+						totalPages:		if pRes.rows[0].count==0 then 1 else Math.ceil(pRes.rows[0].count / options.pager.perPage)
 						page:			options.pager.page
 						perPage:		options.pager.perPage
 						rows:			[]
@@ -904,7 +905,6 @@ class exports.password extends exports.column
 	type:				'password'
 	dbType:				'text'
 	saltField:			'salt'
-	saltChars:			'0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-_'
 	saltLen:			48
 
 	constructor: (setSaltField) ->
@@ -915,12 +915,7 @@ class exports.password extends exports.column
 		@onCall 'pre_set_value', (ev, val, record) ->
 			unless val? then return undefined
 			
-			saltCharLen = @saltChars.length
-			newSalt = ''
-			for i in [1..@saltLen]
-				p = Math.floor(Math.random() * saltCharLen)
-				newSalt += @saltChars[p]
-
+			newSalt = crypto.randomBytes(48).toString('base64').substring(0, @saltLen)
 			record.set(@saltField, newSalt)
 
 			return sha1(newSalt + ':' + val)

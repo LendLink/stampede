@@ -9,6 +9,8 @@ class User extends dba.table
 		firstname:		new dba.varchar(100).notNull()
 		lastname:		new dba.varchar(100).notNull()
 		description:	new dba.text()
+		password:		new dba.password('salt').notNull()
+		salt:			new dba.varchar(100)
 		#address_id:		new dba.map(address).setToStringField('postcode')
 	@primaryKeys:		['id']
 module.exports = User
