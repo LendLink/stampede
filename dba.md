@@ -104,3 +104,10 @@ User.get dbh, 1, (err, u) ->
 	u.dump()
 ```
 
+Here we define an object that describes a table in the database by extending the `dba.table` class.  All the class properties in the example are required for a table definition to be considered complete.
+
+* `@dbTable` is used to declare the tablename used by the database.
+* `@columns` defines each underlying column in the database table that dba is required to interact with.
+* `@primaryKeys` tells dba which columns are required to uniquely identify a record in the database.  
+
+Finally in the example we call the `get` method of the User class to fetch a single record from the database using the 
