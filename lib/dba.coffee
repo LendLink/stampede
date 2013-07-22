@@ -411,27 +411,31 @@ class exports.table
 	constructor: ->
 		throw "DBA Tables should never be instantiated!"
 
-	@fromJson: (json, allowFieldList) ->
+	@fromJson: (json, options) ->
 		@initialise()
 
 		if Array.isArray(json)
 			result = []
 			for j in json
-				result.push @_fromJson(j, allowFieldList)
+				result.push @_fromJson(j, options)
 			return result
 		else
-			return @_fromJson(json, allowFieldList)
+			return @_fromJson(json, options)
 
-	@_fromJson: (json, allowFieldList) ->
-		if allowFieldList?
+	@_fromJson: (json, options = {}) ->
+		if options.allowFieldList?
 			allow = {}
-			for f in allowFieldList
+			for f in options.allowFieldList
 				allow[f] = true
 
 		r = new @recordClass(@)
 		for cname of @columns when not allow? or allow[cname] is true
+			jname = if options.map? and options.map[cname] then options.map[cname] else cname
 			if json[cname]?
-				r.set(cname, json[cname])
+				if options.checkValues? and options.checkValues is true
+					r.set(cname, json[jname])
+				else
+					r.deserialise(cname, json[jname])
 		r
 
 	@getPrimaryKeys: ->
