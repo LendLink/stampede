@@ -424,6 +424,7 @@ class exports.table
 			return @_fromJson(json, options)
 
 	@_fromJson: (json, options = {}) ->
+		options.skipChecks ?= {}
 		if options.allowFieldList?
 			allow = {}
 			for f in options.allowFieldList
