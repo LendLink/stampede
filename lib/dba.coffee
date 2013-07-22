@@ -317,8 +317,9 @@ class exports.record
 	columnNames: () ->
 		col for col of @columns
 
-	forceSet: (col, value) ->
+	forceSet: (col, value, setModified = true) ->
 		@data[col] = value
+		@modified[col] = true if setModified
 		@
 
 	edit: (col) ->
@@ -471,6 +472,9 @@ class exports.table
 		@initialise()
 		@recordClass = newRecord ? exports.record
 		@
+
+	@buildCache: (dbh, callback) ->
+		@preselectEvent dbh, callback
 
 	@preselectEvent: (dbh, callback) ->
 		@initialise()
