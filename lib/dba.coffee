@@ -431,11 +431,12 @@ class exports.table
 		r = new @recordClass(@)
 		for cname of @columns when not allow? or allow[cname] is true
 			jname = if options.map? and options.map[cname] then options.map[cname] else cname
-			if json[cname]?
+			if json[jname]?
 				if options.checkValues? and options.checkValues is true
 					r.set(cname, json[jname])
 				else
 					r.deserialise(cname, json[jname])
+					r.setModified [cname]
 		r
 
 	@getPrimaryKeys: ->
