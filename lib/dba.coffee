@@ -433,11 +433,11 @@ class exports.table
 		for cname of @columns when not allow? or allow[cname] is true
 			jname = if options.map? and options.map[cname] then options.map[cname] else cname
 			if json[jname]?
-				if options.checkValues? and options.checkValues is true
-					r.set(cname, json[jname])
-				else
+				if (options.checkValues? and options.checkValues is false) or (options.skipChecks[cname]? and options.skipChecks[cname] is true)
 					r.deserialise(cname, json[jname])
 					r.setModified [cname]
+				else
+					r.set(cname, json[jname])
 		r
 
 	@getPrimaryKeys: ->
