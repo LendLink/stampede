@@ -222,7 +222,7 @@ class exports.column extends utils.extendEvents
 	evalDefault: ->
 		@emitCall 'eval_default', @defaultValue
 
-	allowNull: ->
+	setAllowNull: ->
 		@allowNull = true
 		@
 
