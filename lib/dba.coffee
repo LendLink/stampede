@@ -522,8 +522,11 @@ class exports.table
 				f = []
 				for k of options.filter
 					throw "Unknown filter column #{k}" unless @columns[k]?
-					options.bind.push options.filter[k]
-					f.push "#{@columns[k].getDbFieldName()} = $#{options.bind.length}"
+					if options.filter[k] is null
+						f.push "#{@columns[k].getDbFieldName()} IS NULL"
+					else
+						options.bind.push options.filter[k]
+						f.push "#{@columns[k].getDbFieldName()} = $#{options.bind.length}"
 
 				if options.where? then options.where += " AND (#{f.join(' AND ')})"
 				else options.where = f.join(' AND ')
