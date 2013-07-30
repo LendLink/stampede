@@ -873,7 +873,9 @@ class exports.date extends exports.column
 			undefined
 
 		@onCall 'serialise', (ev, val) ->
-			if val? then return val.format 'YYYY-MM-DD'
+			if val?
+				unless val instanceof moment then val = new moment(val)
+				return val.format 'YYYY-MM-DD'
 			undefined
 
 		@onCall 'deserialise', (ev, val) ->
