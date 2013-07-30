@@ -150,6 +150,10 @@ class exports.column extends utils.extendEvents
 	validationRules:	undefined
 	extendRecord:		undefined
 	preselectEvent: 	undefined
+	formFieldType:		undefined
+	formLabel:			undefined
+	showFormLabel:		true
+	primaryKey:			false
 
 	constructor: ->
 		super
@@ -179,6 +183,37 @@ class exports.column extends utils.extendEvents
 	setName: (name) ->
 		@name = name
 		@
+
+	getFormFieldType: ->
+		@formFieldType ? 'text'
+
+	setFormFieldType: (type) ->
+		@formFieldType = type
+		@
+
+	setLabel: (label) ->
+		@formLabel = label
+		@
+
+	getLabel: ->
+		if @formLabel?
+			@formLabel
+		else
+			label = @name
+			label = label.replace(/_/g, ' ')
+			label = label.replace /([a-z])([A-Z])/g, (str, pre, post) -> pre + ' ' + post
+			label = label.replace /([^\W_]+[^\s-]*) */g, (txt) -> txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase()
+			label
+
+	showLabel: ->
+		@showFormLabel
+
+	setPrimaryKey: (val = true) ->
+		@primaryKey = val
+		@
+
+	isPrimaryKey: ->
+		@primaryKey
 
 	getName: -> @name
 
@@ -400,6 +435,9 @@ class exports.table
 		return if @initialised is true
 		for c of @columns
 			@columns[c].setName c
+		for pk in @primaryKeys
+			@columns[pk].setPrimaryKey()
+
 		@initialised = true
 		@
 
@@ -845,6 +883,7 @@ class exports.json extends exports.column
 
 class exports.boolean extends exports.column
 	type: 'boolean'
+	formFieldType: 'checkbox'
 
 	constructor: ->
 		super
@@ -923,6 +962,7 @@ class exports.timestamp extends exports.column
 class exports.enum extends exports.column
 	type:				'enum'
 	allowedValues:		undefined
+	formFieldType: 		'select'
 
 	constructor: (values) ->
 		super
@@ -943,6 +983,7 @@ class exports.password extends exports.column
 	dbType:				'text'
 	saltField:			'salt'
 	saltLen:			48
+	formFieldType: 		'password'
 
 	constructor: (setSaltField) ->
 		super
@@ -961,44 +1002,6 @@ class exports.password extends exports.column
 			if @get(field) is sha1(@get(@columns[field].saltField) + ':' + pass)
 				return true
 			return false
-
-
-class exports.fk extends exports.column
-	type:				'fk'
-	dbType:				'integer'
-	linkTable:			undefined
-	toStringField:		undefined
-	childObjects:		undefined
-	oneToMany:			undefined
-
-	constructor: (linkedTable, oneToMany = false) ->
-		super
-
-		@linkTable = linkedTable
-		linkedTable.initialise()
-
-		unless @linkTable.primaryKeys.length == 1
-			throw("Map field #{@name} must link to a table with exactly one primary key, #{@linkTable.tableName()} has #{@linkTable.primaryKeys.length}.")
-
-		@oneToMany = oneToMany
-		@childObjects = []
-
-		@onCall 'pre_set_value', (ev, val, record) ->
-			unless val? then return undefined
-			if val instanceof exports.record then return val.get(@linkTable.primaryKeys[0])
-			return val
-
-
-
-	setToStringField: (fieldName) ->
-		@toStringField = fieldName
-		@
-
-	getToStringField: ->
-		@toStringField
-
-	getLinkTable: ->
-		@linkTable
 
 
 
