@@ -955,6 +955,45 @@ class exports.password extends exports.column
 			return false
 
 
+class exports.fk extends exports.column
+	type:				'fk'
+	dbType:				'integer'
+	linkTable:			undefined
+	toStringField:		undefined
+	childObjects:		undefined
+	oneToMany:			undefined
+
+	constructor: (linkedTable, oneToMany = false) ->
+		super
+
+		@linkTable = linkedTable
+		linkedTable.initialise()
+
+		unless @linkTable.primaryKeys.length == 1
+			throw("Map field #{@name} must link to a table with exactly one primary key, #{@linkTable.tableName()} has #{@linkTable.primaryKeys.length}.")
+
+		@oneToMany = oneToMany
+		@childObjects = []
+
+		@onCall 'pre_set_value', (ev, val, record) ->
+			unless val? then return undefined
+			if val instanceof exports.record then return val.get(@linkTable.primaryKeys[0])
+			return val
+
+
+
+	setToStringField: (fieldName) ->
+		@toStringField = fieldName
+		@
+
+	getToStringField: ->
+		@toStringField
+
+	getLinkTable: ->
+		@linkTable
+
+
+
 class exports.map extends exports.column
 	type:				'map'
 	dbType:				'integer'
