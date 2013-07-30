@@ -838,6 +838,10 @@ class exports.text extends exports.column
 	type:				'text'
 
 
+class exports.json extends exports.column
+	type:				'json'
+
+
 
 class exports.boolean extends exports.column
 	type: 'boolean'
@@ -899,7 +903,9 @@ class exports.timestamp extends exports.column
 			undefined
 
 		@onCall 'serialise', (ev, val) ->
-			if val? then return val.format 'YYYY-MM-DD HH:mm:ss.SSSZ'
+			if val?
+				unless val instanceof moment then val = new moment(val)
+				return val.format 'YYYY-MM-DD HH:mm:ss.SSSZ'
 			undefined
 
 		@onCall 'deserialise', (ev, val) ->
