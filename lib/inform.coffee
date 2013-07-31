@@ -4,13 +4,16 @@
 # Form abstraction layer and builder
 ###
 
+dba = require './dba'
 utils = require './utils'
 
 class idIndex
 	index: undefined
+	uniqueCounter: undefined
 
 	constructor: ->
 		@index = {}
+		@uniqueCounter = {}
 
 	saveObj: (id, obj, oldId) ->
 		if oldId? then @removeObj oldId
@@ -31,15 +34,21 @@ class idIndex
 		if @index[id]? then return true
 		return false
 
+	genUniqueId: (prefix = '') ->
+		@uniqueCounter[prefix] ?= 0
+		id = prefix + '_' + (++@uniqueCounter[prefix])
+		if @idExists(id) then @genUniqueId(prefix) else id
+
 
 
 class exports.element extends utils.extendEvents
-	htmlType:		'unknown'
-	attributes:		undefined
-	flags:			undefined
-	idIndex:		undefined
-	name:			undefined
-	childFields:	undefined
+	htmlType:		undefined			# HTML element type
+	properties:		undefined			# Properties that are used internally, not rendered
+	attributes:		undefined			# Renderable HTML attributes for this tag
+	flags:			undefined			# Obsolete HTML flag attributes for this tag
+	idIndex:		undefined			# Index object that tracks ids of all form fields
+	childFields:	undefined			# Child elements
+	rendered:		false				# If the element has been manually rendered or not
 
 	constructor: (id, name) ->
 		super
@@ -47,6 +56,7 @@ class exports.element extends utils.extendEvents
 		@attributes = {}
 		@flags = {}
 		@childFields = []
+		@properties = {}
 
 		if id? then @setId(id)
 		if name? then @setAttribute('name', name)
@@ -58,6 +68,17 @@ class exports.element extends utils.extendEvents
 	getElementType: ->
 		@htmlType
 
+	setProperty: (prop, value) ->
+		@properties[prop] = value
+		@
+
+	getProperty: (prop) ->
+		@properties[prop]
+
+	unsetProperty: (prop) ->
+		delete @properties[prop]
+		@
+
 	unsetAttribute: (attr) ->
 		if attr is 'id' then return @setId undefined
 		delete @attributes[attr]
@@ -67,6 +88,9 @@ class exports.element extends utils.extendEvents
 		if attr is 'id' then return @setId value
 		@attributes[attr] = value
 		@
+
+	getAttributes: ->
+		@attributes
 
 	getAttribute: (attr) ->
 		@attributes[attr]
@@ -111,7 +135,7 @@ class exports.element extends utils.extendEvents
 		@idIndex
 
 	addChildField: (childElement) ->
-		console.log "addChildField called with type #{childElement.htmlType} and id #{childElement.getAttribute('id')}"
+		# console.log "addChildField called with type #{childElement.htmlType} and id #{childElement.getAttribute('id')}"
 		@childFields.push childElement
 		@
 
@@ -130,51 +154,85 @@ class exports.element extends utils.extendEvents
 		eleList = @renderElement()
 		return eleList.join('')
 
-	renderElement: ->
+	renderElement: (options) ->
+		options ?= {}
+		@rendered = true
 		@emitCall 'prerender'
 
 		renderedAttributes = @renderAttributes()
 		children = @renderChildren()
 
 		ele = @renderPrefixElements()
+		ele = ele.concat @renderLabelElement() unless options.skipLabel? and options.skipLabel is true
+
 		if children.length > 0
-			ele.push "<#{@htmlType} #{renderedAttributes.join(' ')}>"
+			ele.push "<#{@htmlType} #{renderedAttributes.join(' ')}>" if @htmlType?
 			ele = ele.concat children
-			ele.push "</#{@htmlType}>"
+			ele.push "</#{@htmlType}>" if @htmlType?
 		else
-			ele.push("<#{@htmlType} #{renderedAttributes.join(' ')} />")
+			ele.push("<#{@htmlType} #{renderedAttributes.join(' ')} />") if @htmlType?
 		ele = ele.concat @renderPostfixElements()
 
-		if @htmlType is 'form'
-			console.log "Full render stack for element of type #{@htmlType}:"
-			console.log ele
+		# if @htmlType is 'form'
+		# 	console.log "Full render stack for element of type #{@htmlType}:"
+		# 	console.log ele
 		ele
 
 	renderChildren: ->
 		ele = []
 		for f in @childFields
-			console.log "Rendering field #{f.htmlType} with id #{f.getAttribute('id')}"
 			ele = ele.concat(f.renderElement())
 		ele
 
 	renderPrefixElements: ->
 		[]
 
+	renderLabelElement: ->
+		[]
+
 	renderPostfixElements: ->
 		[]
+
+	renderLabel: (id) ->
+		field = @getIdIndex().getById(id)
+		unless field? then throw "Could not find form field with id #{id}."
+
+		ele = field.renderLabelElement()
+		ele.join('')
+
+	renderInput: (id) ->
+		field = @getIdIndex().getById(id)
+		unless field? then throw "Could not find form field with id #{id}."
+
+		ele = field.renderElement({skipLabel: true})
+		ele.join('')
 
 
 	renderAttributes: (useAttributes = @attributes, useFlags = @flags) ->
 		renderedAttributes = []
-		for attr of useAttributes
+		for attr of useAttributes when useAttributes[attr]?
 			val = utils.escapeHTML(useAttributes[attr])
 			renderedAttributes.push "#{attr}=\"#{val}\""
 		renderedAttributes = renderedAttributes.concat (f for f, v of useFlags when v is true)
 		renderedAttributes
 
-	setLabel: (newName) ->
-		@name = newName
-		@
+	renderRest: ->
+		@rendered = true
+		ele = []
+		for f in @childFields when f.rendered is false
+			ele = ele.concat(f.renderElement())
+		ele.join('')
+
+	bindChildRequest: (req, record) ->
+		for f in @childFields
+			f.processBind(req, record)
+			f.bindChildRequest(req, record)
+
+	processBind: (req, record) ->
+		if @getProperty('dbColumn')?
+			data = utils.extractFormField(req, @getAttribute('name'))
+			console.log "Map property #{@getProperty('dbColumn')} to data #{data}."
+			record.set(@getProperty('dbColumn'), data) if data?
 
 
 
@@ -184,6 +242,8 @@ class exports.element extends utils.extendEvents
 class exports.form extends exports.element
 	htmlType:		'form'
 	model:			undefined
+	bindRecord:		undefined
+	csrfField:		undefined
 
 	constructor: (id = 'f', name) ->
 		super id, name ? id
@@ -191,7 +251,8 @@ class exports.form extends exports.element
 		@setIdIndex(new idIndex())
 
 		# Create the csrf field, it auto adds itself to the form
-		new exports.csrf(@)
+		csrfField = new exports.csrf(@)
+		@addField(csrfField)
 
 	setAction: (url) ->
 		@setAttribute 'action', url
@@ -261,68 +322,92 @@ class exports.form extends exports.element
     exclude : ['other_field'] }
 	###
 	bindModel: (model, options = {}) ->
-		map = options['map'] ? {}
-		overrideLabels = options.label ? {}
-		@model = model #keep reference to this
+		# console.log ">>>>> bindModel called <<<<<<"
+
+		# Save a reference to our model
+		if model instanceof dba.record
+			@model = model.getTable()
+			@bindRecord = model
+		else
+			@model = model
+			@bindRecord = undefined
 		
-		for own name, column of model.getColumns()
-			console.log "Building form from model column #{name}"
-			addField = true
+		options.fields ?= {}
 
-			if (map.add? and map.add.indexOf(name) is -1)
-				addField = false # there is a list, and not on the list
-			if (map.exclude? and map.exclude.indexOf(name) >- 1)
-				addField = false # there is a list, and on the exclude list
+		formName = options.formName ? @model.tableName()
+		@setProperty('formName', formName)
+
+		for own name, column of @model.getColumns()
+			opts = options.fields[name] ? {}
+
+			# console.log "Building form from model column #{name}"
+			# console.log opts
+			if options.useFields? and options.useFields.indexOf(name) is -1 then continue
 			
-			console.log "    addField is #{addField}"
-			if addField
-				newField = undefined
-				showLabel = false
-				console.log "    column type is #{column.type}"
-				if column.isPrimaryKey() is true
-					newField = new exports.hidden(name)
-				else
-					switch column.getFormFieldType()
-						when 'text'
-							newField = new exports.text(name)
-							showLabel = true
+			newField = undefined
+			showLabel = false
+			# console.log "    column type is #{column.type} with form field type #{column.getFormFieldType()}"
+			if column.isPrimaryKey() is true
+				newField = new exports.hidden(name)
+			else
+				switch opts.type ? column.getFormFieldType()
+					when 'text'
+						newField = new exports.text(name)
+						showLabel = true
+						if @bindRecord? then newField.setAttribute('value', @bindRecord.get(name))
 
-						when 'password'
-							newField = new exports.password(name)
-							showLabel = true
+					when 'textarea'
+						newField = new exports.textArea(name)
+						showLabel = true
+						if @bindRecord? then newField.setText(@bindRecord.get(name))
 
-						# when 'checkbox'
-						# 	newField = new exports.multichoice(name).setCheckbox()
+					when 'password'
+						newField = new exports.password(name)
+						showLabel = true
 
-						# when 'select'
-						# 	newField = new exports.multichoice(name).setSelect()
+					when 'checkbox'
+						newField = new exports.multichoice(name).setCheckbox()
+						newField.setOptions([{id: name, label: opts.label ? column.getLabel()}])
+						if @bindRecord? and @bindRecord.get(name) then newField.setSelected(name)
 
+					when 'choice'
+						newField = new exports.multichoice(name).setAttribute('name', name)
+						newField.setOptions(opts.choices) if opts.choices?
+						newField.setSelected(opts.selected) if opts.selected?
+
+						if opts.expanded? and opts.expanded is true
+							if opts.multiple? and opts.multiple is true then newField.setCheckbox()
+							else newField.setRadio()
 						else
-							console.log "Unknown form column type #{column.getFormFieldType()}"
+							newField.setSelect()
 
-				# Ignoring types which we don't understand..
-				if newField?
-					if showLabel is true
-						if overrideLabels[name]?
-							newField.setLabel(overrideLabels[name])
-						else if column.showLabel() is true
-							newField.setLabel(column.getLabel())
+					else
+						console.log "Unknown form column type #{column.getFormFieldType()}"
 
-					if model.data?
-						newField.setAttribute('value', model.data[name])
-					@addField(newField)
+			# Ignoring types which we don't understand..
+			if newField?
+				newField.setAttribute('name', "#{formName}[#{name}]")
+				newField.setProperty('dbColumn', name)
+
+				if showLabel is true
+					newField.setLabel(opts.label ? column.getLabel())
+
+				if @model.data?
+					newField.setAttribute('value', @model.data[name])
+
+				if opts.attributes?
+					for key, val of opts.attributes
+						newField.setAttribute(key, val)
+
+				@addField(newField)
 		return @
 
-	bindToModel: (model) ->
-		console.log model
-		for f in @fields
-			if model.data?
-				model.data[f.getAttribute('name')] = f.getAttribute('value')
-				model.modified[f.getAttribute('name')] = true
-		return @
+	bindRequest: (req, callback) ->
+		record = @model.createRecord()
+		@bindChildRequest(req, record)
 
-
-
+		if callback?
+			callback undefined, record
 
 
 
@@ -360,7 +445,7 @@ class exports.field extends exports.element
 			@label.forField(@)
 		@
 
-	renderPrefixElements: ->
+	renderLabelElement: ->
 		ele = super
 		if @label?
 			ele.concat @label.render()
@@ -406,70 +491,102 @@ class exports.submit extends exports.field
 		@label = undefined #don't show label for submit buttons
 
 
-# class exports.multichoice extends exports.field
-# 	options: undefined
-# 	displayAs: 'select'
-# 	selected: undefined
+class exports.multichoice extends exports.field
+	displayAs:			'select'
+	options:			undefined
+	selected:			undefined
 
-# 	constructor: (id, form) ->
-# 		super id, form
-# 		@options = []
-# 		@selected = []
+	constructor: (id, form) ->
+		super id, form
+		@options = []
+		@selected = {}
 
-# 	setOptions: (list) ->
-# 		@options = list
-# 		return @
+		@onCall 'prerender', ->
+			switch @displayAs
+				when 'select' then @htmlType = 'select'
+				when 'checkbox' then @htmlType = undefined
+				when 'radio' then @htmlType = undefined
 
-# 	getOptions: ->
-# 		return @options
 
-# 	appendOptions: (list) ->
-# 		@options = @options.concat list
-# 		return @
+	setOptions: (list) ->
+		@options = list
+		@
 
-# 	setSelect: ->
-# 		@displayAs = 'select'
-# 		return @
-		
-# 	setCheckbox: ->
-# 		@displayAs = 'checkbox'
-# 		return @
-		
-# 	setRadio: ->
-# 		@displayAs = 'radio'
-# 		return @
+	getOptions: ->
+		@options
 
-# 	render: (useAttributes, useFlags) ->
-# 		if !@name? and @attributes.id then @name = @attributes.id
-# 		if @displayAs == 'select' then return @renderSelect(useAttributes, useFlags)
-# 		if @displayAs == 'checkbox' then return @renderCheckbox(useAttributes, useFlags)
-# 		if @displayAs == 'radio' then return ''
+	appendOptions: (list) ->
+		@options = @options.concat list
+		@
 
-# 	renderSelect: (useAttributes, useFlags) ->
-# 		renderedOption = []
-# 		for option of options
-# 			renderedOption.push("<option value=\"#{option.value}\">#{option.name}</option>")
-# 		renderSelect = []
-# 		renderSelect.push(@label.render())
-# 		renderSelect.push("<select #{@renderAttributes(useAttributes, useFlags).join(' ')}>#{renderedOption.join('')}</select>")
-# 		return renderSelect.join('')
+	setSelect: ->
+		@displayAs = 'select'
+		@
 
-# 	renderCheckbox: (useAttributes, useFlags) ->
-# 		renderedBoxes = []
-# 		renderedBoxes.push("<label for=\"#{@attributes.id}\">#{@name}<input type=\"checkbox\" #{@renderAttributes(useAttributes, useFlags).join(' ')}></label>")
-# 		return renderedBoxes.join('')
+	setCheckbox: ->
+		@displayAs = 'checkbox'
+		@
+
+	setRadio: ->
+		@displayAs = 'radio'
+		@
+
+	setSelected: (id) ->
+		@selected = {}
+		@selected[id] = true
+		@
+
+	addSelected: (id) ->
+		@selected[id] = true
+		@
+
+	deselect: (id) ->
+		delete @selected[id]
+		@
+
+	deselectAll: ->
+		@selected = {}
+		@
+
+	renderChildren: ->
+		out = []
+		switch @displayAs
+			when 'select'
+				for option in @options
+					selected = if @selected[option.value ? option.name]? then ' selected="selected"' else ''
+					out.push "<option value=\"#{option.value ? option.name}\"#{selected}>#{option.label}</option>"
+			when 'checkbox'
+				for option in @options
+					checked = if @selected[option.id] then ' checked="checked"' else ''
+					attr = utils.clone @getAttributes()
+					if option.value? then attr.value = option.value
+					attr.id = option.id ? @getIdIndex().genUniqueId(attr.id)
+					if option.label? then out.push "<label for=\"#{attr['id']}\">"
+					out.push "<input type=\"checkbox\" #{@renderAttributes(attr).join(' ')}#{checked} />"
+					if option.label? then out.push " #{option.label}</label>"
+			when 'radio'
+				for option in @options
+					checked = if @selected[option.id] then ' checked="checked"' else ''
+					attr = utils.clone @getAttributes()
+					if option.value? then attr.value = option.value
+					attr.id = option.id ? @getIdIndex().genUniqueId(attr.id)
+					if option.label? then out.push "<label for=\"#{attr['id']}\">"
+					out.push "<input type=\"radio\" #{@renderAttributes(attr).join(' ')}#{checked} />"
+					if option.label? then out.push " #{option.label}</label>"
+		out
+
+
+
 
 
 class exports.hidden extends exports.field
 	constructor: (id, form) ->
 		super id, form
 		@setAttribute 'type', 'hidden'
-		@label = undefined #hide the label for hidden elements
 
 
 class exports.csrf extends exports.hidden
 	constructor: (form) ->
-		console.log "Creating new csrf field"
 		super '_csrf', form			#always uses '_csrf'
 
 

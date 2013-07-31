@@ -86,3 +86,22 @@ class exports.extendEvents extends events.EventEmitter
 		setTimeout =>
 				@emit.apply @, args
 			, 0
+
+exports.extractFormFieldPath = (obj, path) ->
+	if path is '' then return obj
+
+	p = path.match /^\[([^\]]+)\](.*?)$/
+	if p?
+		if obj[p[1]]? then return exports.extractFormFieldPath(obj[p[1]], p[2])
+		else return undefined
+
+	p = path.match /^([^\[]+)(.*?)$/
+	if p?
+		if obj[p[1]]? then return exports.extractFormFieldPath(obj[p[1]], p[2])
+		else return undefined
+
+	undefined
+
+exports.extractFormField = (req, path) ->
+	exports.extractFormFieldPath(req.body, path)
+

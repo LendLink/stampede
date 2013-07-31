@@ -322,6 +322,9 @@ class exports.record
 
 		@
 
+	getTable: ->
+		@table
+
 	getParent: -> @parentTable
 
 	dump: (indent = '') ->
@@ -366,6 +369,7 @@ class exports.record
 
 	get: (col) ->
 		if @table?
+			unless @columns[col]? then throw "Unknown table column '#{col}' in result set."
 			@columns[col].get(@data[col], @)
 		else
 			@data[col]
@@ -421,6 +425,12 @@ class exports.record
 		for col of @columns
 			@modified[col] = true
 		@
+
+	insert: (dbh, callback) ->
+		@table.insert(dbh, @, callback)
+
+	update: (dbh, callback) ->
+		@table.update(dbh, @, callback)
 
 
 
@@ -511,6 +521,9 @@ class exports.table
 		@initialise()
 		@recordClass = newRecord ? exports.record
 		@
+
+	@createRecord: ->
+		new @recordClass(@)
 
 	@buildCache: (dbh, callback) ->
 		@preselectEvent dbh, callback
@@ -874,6 +887,7 @@ class exports.varchar extends exports.column
 
 class exports.text extends exports.column
 	type:				'text'
+	formFieldType:		'textarea'
 
 
 class exports.json extends exports.column
