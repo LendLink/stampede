@@ -6,6 +6,7 @@
 
 dba = require './dba'
 utils = require './utils'
+async = require 'async'
 
 class idIndex
 	index: undefined
@@ -34,10 +35,16 @@ class idIndex
 		if @index[id]? then return true
 		return false
 
-	genUniqueId: (prefix = '') ->
-		@uniqueCounter[prefix] ?= 0
+	genUniqueId: (prefix = '', startId = 0) ->
+		@uniqueCounter[prefix] ?= startId
 		id = prefix + '_' + (++@uniqueCounter[prefix])
 		if @idExists(id) then @genUniqueId(prefix) else id
+
+	makeUniqueId: (prefix = '') ->
+		if @idExists(prefix) then @genUniqueId(prefix, 1) else prefix
+
+	allItems: ->
+		@index
 
 
 
@@ -47,11 +54,21 @@ class exports.element extends utils.extendEvents
 	attributes:		undefined			# Renderable HTML attributes for this tag
 	flags:			undefined			# Obsolete HTML flag attributes for this tag
 	idIndex:		undefined			# Index object that tracks ids of all form fields
+	formNameIndex:	undefined			# Make sure form names are unique
 	childFields:	undefined			# Child elements
 	rendered:		false				# If the element has been manually rendered or not
+	parentForm:		undefined			# If we're an embedded form then this is our parent
 
-	constructor: (id, name) ->
+	constructor: (id, name = 'form', parentForm) ->
 		super
+
+		if parentForm?
+			@formNameIndex = parentForm.getFormNameIndex()
+			@parentForm = parentForm
+		else
+			@formNameIndex = new idIndex()
+	
+		name = @formNameIndex.makeUniqueId('name')
 
 		@attributes = {}
 		@flags = {}
@@ -60,6 +77,39 @@ class exports.element extends utils.extendEvents
 
 		if id? then @setId(id)
 		if name? then @setAttribute('name', name)
+
+	embedForm: (form) ->
+		childName = form.getAttribute('name')
+		form.removeCSRF()
+		form.setFormNameIndex(@formNameIndex)
+		form.setAttribute('name', @formNameIndex.makeUniqueId(childName))
+		form.setParentForm(@)
+		form.reindexIds(@idIndex)
+		@addChildField(form)
+
+	reindexIds: (newIdIndex) ->
+		oldIdIndex = @idIndex
+		@idIndex = newIdIndex
+
+		for id, obj of oldIdIndex.allItems()
+			obj.setIdIndex(@idIndex)
+
+		@
+
+
+	setParentForm: (form) ->
+		@parentForm = form
+		@
+
+	getParentForm: ->
+		@parentForm
+
+	setFormNameIndex: (idx) ->
+		@formNameIndex = idx
+		@
+
+	getFormNameIndex: ->
+		@formNameIndex
 
 	setElementType: (newType) ->
 		@htmlType = newType
@@ -103,6 +153,9 @@ class exports.element extends utils.extendEvents
 		delete @flags[flag]
 		@
 
+	getId: ->
+		@attributes.id
+
 	setId: (newId) ->
 		# If we already have the same Id then shortcut the function.  Throw an error if the ID is already in use.
 		if @attributes.id?
@@ -126,9 +179,12 @@ class exports.element extends utils.extendEvents
 		@idIndex?.exists id
 
 	setIdIndex: (indexObj) ->
+		myId = @getId()
+		@setId undefined
+
 		@idIndex = indexObj
-		if @attributes.id?
-			@idIndex.saveObj @attributes.id, @
+		@setId @idIndex.makeUniqueId(myId)
+
 		@
 
 	getIdIndex: ->
@@ -141,18 +197,33 @@ class exports.element extends utils.extendEvents
 
 	removeChildField: (id) ->
 		pointer = 0
-		for field in @childFields
-			if field.attributes.id == id
-				@childFields.splice(pointer, 1)
-				if @idIndex? then @idIndex.removeObj @attributes.id
-				return @
+		if id instanceof exports.element
+			for field in @childFields
+				if field is id
+					@childFields.splice(pointer, 1)
+					if @idIndex? then @idIndex.removeObj @attributes.id
+					return @
 
-			pointer++
+				pointer++
+		else
+			for field in @childFields
+				if field.attributes.id is id
+					@childFields.splice(pointer, 1)
+					if @idIndex? then @idIndex.removeObj @attributes.id
+					return @
+
+				pointer++
+
 		return @
 
 	render: ->
 		eleList = @renderElement()
 		return eleList.join('')
+
+	shouldRenderTag: ->
+		return false unless @htmlType?
+		return false if @htmlType is 'form' and @parentForm?
+		true
 
 	renderElement: (options) ->
 		options ?= {}
@@ -166,11 +237,11 @@ class exports.element extends utils.extendEvents
 		ele = ele.concat @renderLabelElement() unless options.skipLabel? and options.skipLabel is true
 
 		if children.length > 0
-			ele.push "<#{@htmlType} #{renderedAttributes.join(' ')}>" if @htmlType?
+			ele.push "<#{@htmlType} #{renderedAttributes.join(' ')}>" if @shouldRenderTag() 
 			ele = ele.concat children
-			ele.push "</#{@htmlType}>" if @htmlType?
+			ele.push "</#{@htmlType}>" if @shouldRenderTag() 
 		else
-			ele.push("<#{@htmlType} #{renderedAttributes.join(' ')} />") if @htmlType?
+			ele.push("<#{@htmlType} #{renderedAttributes.join(' ')} />") if @shouldRenderTag() 
 		ele = ele.concat @renderPostfixElements()
 
 		# if @htmlType is 'form'
@@ -216,24 +287,32 @@ class exports.element extends utils.extendEvents
 		renderedAttributes = renderedAttributes.concat (f for f, v of useFlags when v is true)
 		renderedAttributes
 
-	renderRest: ->
+	renderRest: (doJoin = true) ->
 		@rendered = true
 		ele = []
 		for f in @childFields when f.rendered is false
-			ele = ele.concat(f.renderElement())
-		ele.join('')
+			if f instanceof exports.form
+				ele = ele.concat(f.renderRest(false))
+			else
+				ele = ele.concat(f.renderElement())
+		
+		if doJoin is true then ele.join('') else ele
 
-	bindChildRequest: (req, record) ->
+	bindChildRequest: (req, recordSet, recordKey) ->
 		for f in @childFields
-			f.processBind(req, record)
-			f.bindChildRequest(req, record)
+			# are we a form object?
+			if f instanceof exports.form
+				recordKey = f.getProperty('formName')
+				recordSet[recordKey] = f.bindRecord ? f.model.createRecord()
+				f.bindChildRequest(req, recordSet, recordKey)
+			else
+				# We're a normal element, are we mapped to a DB column?
+				if f.getProperty('dbColumn')?
+					data = utils.extractFormField(req, f.getAttribute('name'))
+					# console.log "Map property #{f.getProperty('dbColumn')} to data #{data}."
+					recordSet[recordKey].set(f.getProperty('dbColumn'), data) if data?
 
-	processBind: (req, record) ->
-		if @getProperty('dbColumn')?
-			data = utils.extractFormField(req, @getAttribute('name'))
-			console.log "Map property #{@getProperty('dbColumn')} to data #{data}."
-			record.set(@getProperty('dbColumn'), data) if data?
-
+				f.bindChildRequest(req, recordSet, recordKey)
 
 
 
@@ -251,8 +330,12 @@ class exports.form extends exports.element
 		@setIdIndex(new idIndex())
 
 		# Create the csrf field, it auto adds itself to the form
-		csrfField = new exports.csrf(@)
-		@addField(csrfField)
+		@csrfField = new exports.csrf()
+		@addField(@csrfField)
+
+	removeCSRF: ->
+		@removeField(@csrfField)
+		@csrfField = undefined
 
 	setAction: (url) ->
 		@setAttribute 'action', url
@@ -334,82 +417,123 @@ class exports.form extends exports.element
 		
 		options.fields ?= {}
 
+		if options.csrf then @addCSRF(options.csrf)
+
+		@setMethod(options.method ? 'POST')
+		@setAction(options.action ? '')
+
 		formName = options.formName ? @model.tableName()
 		@setProperty('formName', formName)
 
+		processedFields = {}
 		for own name, column of @model.getColumns()
 			opts = options.fields[name] ? {}
+			processedFields[name] = true
 
-			# console.log "Building form from model column #{name}"
-			# console.log opts
-			if options.useFields? and options.useFields.indexOf(name) is -1 then continue
-			
-			newField = undefined
-			showLabel = false
-			# console.log "    column type is #{column.type} with form field type #{column.getFormFieldType()}"
-			if column.isPrimaryKey() is true
-				newField = new exports.hidden(name)
-			else
-				switch opts.type ? column.getFormFieldType()
-					when 'text'
-						newField = new exports.text(name)
-						showLabel = true
-						if @bindRecord? then newField.setAttribute('value', @bindRecord.get(name))
+			unless options.fields[name]?
+				if options.useFields? and options.useFields.indexOf(name) is -1 then continue
 
-					when 'textarea'
-						newField = new exports.textArea(name)
-						showLabel = true
-						if @bindRecord? then newField.setText(@bindRecord.get(name))
+			@processBindField(formName, name, column, opts, options)
 
-					when 'password'
-						newField = new exports.password(name)
-						showLabel = true
+	
+		for name, opts of options.fields
+			continue if processedFields[name]?
+			processedFields[name] = true
 
-					when 'checkbox'
-						newField = new exports.multichoice(name).setCheckbox()
-						newField.setOptions([{id: name, label: opts.label ? column.getLabel()}])
-						if @bindRecord? and @bindRecord.get(name) then newField.setSelected(name)
+			@processBindField(formName, name, undefined, opts, options)
 
-					when 'choice'
-						newField = new exports.multichoice(name).setAttribute('name', name)
-						newField.setOptions(opts.choices) if opts.choices?
-						newField.setSelected(opts.selected) if opts.selected?
-
-						if opts.expanded? and opts.expanded is true
-							if opts.multiple? and opts.multiple is true then newField.setCheckbox()
-							else newField.setRadio()
-						else
-							newField.setSelect()
-
-					else
-						console.log "Unknown form column type #{column.getFormFieldType()}"
-
-			# Ignoring types which we don't understand..
-			if newField?
-				newField.setAttribute('name', "#{formName}[#{name}]")
-				newField.setProperty('dbColumn', name)
-
-				if showLabel is true
-					newField.setLabel(opts.label ? column.getLabel())
-
-				if @model.data?
-					newField.setAttribute('value', @model.data[name])
-
-				if opts.attributes?
-					for key, val of opts.attributes
-						newField.setAttribute(key, val)
-
-				@addField(newField)
 		return @
 
-	bindRequest: (req, callback) ->
-		record = @model.createRecord()
-		@bindChildRequest(req, record)
+	processBindField: (formName, name, column, opts, options) ->
+		boundData = if @bindRecord? and @bindRecord.columnExists(name) then @bindRecord.get(name) else undefined
+		newField = undefined
+		showLabel = false
+		# console.log "    column type is #{column.type} with form field type #{column.getFormFieldType()}"
+		if column? and column.isPrimaryKey() is true
+			newField = new exports.hidden(name)
+		else
+			switch opts.type ? column?.getFormFieldType()
+				when 'text'
+					newField = new exports.text(name)
+					showLabel = true
+					if boundData? then newField.setAttribute('value', boundData)
 
-		if callback?
-			callback undefined, record
+				when 'textarea'
+					newField = new exports.textArea(name)
+					showLabel = true
+					if boundData? then newField.setText(boundData)
+
+				when 'password'
+					newField = new exports.password(name)
+					showLabel = true
+
+				when 'checkbox'
+					newField = new exports.multichoice(name).setCheckbox()
+					newField.setOptions([{id: name, label: opts.label ? column?.getLabel()}])
+					if boundData? and boundData is true then newField.setSelected(name)
+
+				when 'choice'
+					newField = new exports.multichoice(name).setAttribute('name', name)
+					newField.setOptions(opts.choices) if opts.choices?
+					newField.setSelected(opts.selected) if opts.selected?
+
+					if opts.expanded? and opts.expanded is true
+						if opts.multiple? and opts.multiple is true then newField.setCheckbox()
+						else newField.setRadio()
+					else
+						newField.setSelect()
+						showLabel = true
+
+				else
+					console.log "Unknown form column type #{column.getFormFieldType()}"
+
+		# Ignoring types which we don't understand..
+		if newField?
+			newField.setAttribute('name', "#{formName}[#{name}]")
+			newField.setProperty('dbColumn', name) if column?
+
+			if showLabel is true
+				newField.setLabel(opts.label ? column.getLabel())
+
+			if @model.data?
+				newField.setAttribute('value', @model.data[name])
+
+			if opts.attributes?
+				for key, val of opts.attributes
+					newField.setAttribute(key, val)
+
+			@addField(newField)
+	
+	bindRequest: (req) ->
+		recordSet = {}
+
+		recordKey = @getProperty('formName')
+		recordSet[recordKey] = @bindRecord ? @model.createRecord()
+		@bindChildRequest(req, recordSet, recordKey)
+
+		recordSet
+
+	persistResult: (dbh, recordSet, primaryCallback) ->
+		recordNames = (n for n of recordSet)
+
+		console.log "Calling into async"
+		async.each recordNames, (item, callback) =>
+			recordSet[item].persist dbh, (err, rec) =>
+				console.log "Processing a record set: #{item}"
+				if err? then return callback err
+				recordSet[item] = rec
+				callback undefined
+		, (err) =>
+			console.log "Async finsihed, calling the callback"
+			if err?
+				primaryCallback err, undefined
+			else
+				primaryCallback undefined, recordSet
 
 
+	persist: (dbh, req, primaryCallback) ->
+		recordSet = @bindRequest req
+		@persistResult dbh, recordSet, primaryCallback
 
 
 
@@ -436,6 +560,9 @@ class exports.field extends exports.element
 		if @boundCallback
 			@boundCallback(value, @)
 		@
+
+	getLabel: ->
+
 
 	setLabel: (newName) ->
 		if @label?
@@ -588,6 +715,7 @@ class exports.hidden extends exports.field
 class exports.csrf extends exports.hidden
 	constructor: (form) ->
 		super '_csrf', form			#always uses '_csrf'
+		@setAttribute 'name', '_csrf'
 
 
 class exports.label extends exports.element

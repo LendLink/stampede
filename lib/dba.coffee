@@ -352,6 +352,9 @@ class exports.record
 	getColumn: (col) ->
 		@columns[col]
 
+	columnExists: (col) ->
+		if @columns[col]? then true else false
+
 	columnNames: () ->
 		col for col of @columns
 
@@ -431,6 +434,17 @@ class exports.record
 
 	update: (dbh, callback) ->
 		@table.update(dbh, @, callback)
+
+	persist: (dbh, callback) ->
+		if @allPrimaryKeysSet() is true
+			@update dbh, callback
+		else
+			@insert dbh, callback
+
+	allPrimaryKeysSet: ->
+		for col in @table.getPrimaryKeys()
+			return false unless @isModified(col) is true
+		true
 
 
 
