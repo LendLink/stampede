@@ -446,6 +446,11 @@ class exports.record
 			return false unless @isModified(col) is true
 		true
 
+	toJson: ->
+		obj = {}
+		for col in @columns
+			obj[col] = @serialise(col)
+		obj
 
 
 class exports.table

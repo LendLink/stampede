@@ -425,6 +425,9 @@ class exports.form extends exports.element
 		formName = options.formName ? @model.tableName()
 		@setProperty('formName', formName)
 
+		for own att, val of options.attributes ? {}
+			@setAttribute(att, val)
+
 		processedFields = {}
 		for own name, column of @model.getColumns()
 			opts = options.fields[name] ? {}
