@@ -6,6 +6,7 @@
 
 inform = require './inform'
 utils = require './utils'
+validator = require './validator'
 moment = require 'moment'
 sha1 = require 'sha1'
 async = require 'async'
@@ -147,6 +148,7 @@ class exports.column extends utils.extendEvents
 	allowNull:			true
 	defaultValue:		undefined
 	includeRules:		undefined
+	validator:			undefined
 	validationRules:	undefined
 	extendRecord:		undefined
 	preselectEvent: 	undefined
@@ -157,6 +159,7 @@ class exports.column extends utils.extendEvents
 
 	constructor: ->
 		super
+		@validator = new validator.Validator()
 		@validationRules = []
 		@events = {}
 		@includeRules = {
@@ -173,6 +176,11 @@ class exports.column extends utils.extendEvents
 			if @allowNull is true then return true
 			if @defaultValue? then return true
 			return "Null values are not allowed."
+
+	addRule: (rule, args, errStr) ->
+		@validator.addRule(rule, args, errStr)
+		@
+
 
 	installExtensions: (rec) ->
 		for fun of @extendRecord
@@ -459,6 +467,7 @@ class exports.table
 	@primaryKeys:			[]
 	@initialised:			false
 	@recordClass:			exports.record
+	@validator:				undefined
 
 	@initialise: ->
 		return if @initialised is true
@@ -1036,6 +1045,72 @@ class exports.password extends exports.column
 				return true
 			return false
 
+
+class exports.link extends exports.column
+	type: 				'link'
+	dbType:				'integer'
+	linkTable:			undefined
+	linkColumn:			undefined
+	recordCache:		undefined
+	linkType:			'one to one'
+	filter:				undefined
+
+	constructor: (linkedTable, linkType, linkColumn) ->
+		super
+		
+		if linkedTable
+			@linkTable = linkedTable
+			linkedTable.initialise()
+
+		@setLinkType linkType if linkType
+		@setLinkColumn linkColumn if linkColumn
+
+		@onCall 'pre_set_value', (ev, val, record) ->
+			@recordCache = undefined
+			val
+
+	setLinkTable: (table) ->
+		@linkTable = table
+		@
+
+	setLinkColumn: (col) ->
+		@linkColumn = col
+		@
+
+	setLinkType: (type) ->
+		if type is 'one' or type is 'one to one' or type is 'single'
+			@linkType = 'one to one'
+		else if type is 'many' or type is 'one to many' or type is 'multiple'
+			@linkType = 'one to many'
+		else throw "Unknown link type #{type}."
+		@
+
+	setFilter: (filter) ->
+		@filter = filter
+		@
+
+	getLinkedRecord: (dbh, val, rec, callback) ->
+		callback "No linked table.", undefined unless @linkTable?
+
+		if @linkType is 'one to one'
+			@linkTable.get dbh, val, (err, rec) =>
+				@setCachedRecord(rec) unless err?
+				callback err, rec
+		else
+			options = {filter: {}}
+			if @filter?
+				options.filter = @filter
+
+			options.filter.
+
+			callback undefined
+
+	setCachedRecord: (obj) ->
+		@recordCache = obj
+		@
+
+	getCachedRecord: ->
+		@recordCache
 
 
 class exports.map extends exports.column
