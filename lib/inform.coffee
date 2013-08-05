@@ -71,9 +71,14 @@ class exports.recordSet
 		valid = true
 		
 		for k, r of @records
-			if r.isValid() is false then valid = false
+			if r.isValid(@, k) is false then valid = false
 
 		valid
+
+	dump: ->
+		for k, r of @records
+			r.dump()
+
 
 class exports.element extends utils.extendEvents
 	htmlType:		undefined			# HTML element type
@@ -384,17 +389,24 @@ class exports.element extends utils.extendEvents
 		for f in @childFields
 			# are we a form object?
 			if f instanceof exports.form
-				recordKey = f.getProperty('formName')
-				recordSet.set recordKey, f.bindRecord ? f.model.createRecord()
-				f.bindChildRequest(req, recordSet, recordKey)
+				subRecordKey = f.getProperty('formName')
+				recordSet.set subRecordKey, f.bindRecord ? f.model.createRecord()
+				f.bindChildRequest(req, recordSet, subRecordKey)
 			else
+				data = utils.extractFormField(req, f.getAttribute('name'))
+
 				# We're a normal element, are we mapped to a DB column?
 				if f.getProperty('dbColumn')?
-					data = utils.extractFormField(req, f.getAttribute('name'))
 					# console.log "Map property #{f.getProperty('dbColumn')} to data #{data}."
 					recordSet.get(recordKey).set(f.getProperty('dbColumn'), data) if data?
 					recordSet.get(recordKey).setValidator f.getProperty('dbColumn'), f.getValidator()
 					f.setValue(data)
+				else
+					# We're a virtual column, need to be created in the record
+					newCol = new dba.virtual()
+					newCol.setValidator f.getValidator()
+					recordSet.get(recordKey).addColumn f.getProperty('fieldName'), newCol, data
+					recordSet.get(recordKey).setValidator f.getProperty('fieldName'), newCol.getValidator()
 
 				f.bindChildRequest(req, recordSet, recordKey)
 
@@ -590,12 +602,13 @@ class exports.form extends exports.element
 		# Ignoring types which we don't understand..
 		if newField?
 			if validator?
-				newField.setValidator new stValidator.Validator(validator)
+				newField.setValidator(new stValidator.Validator(validator))
 
 			if opts.validate?
-				for r in opts.validate 
+				for r in opts.validate
 					newField.addRule(r)
 
+			newField.setProperty('fieldName', name)
 			newField.setAttribute('name', "#{formName}[#{name}]")
 			newField.setProperty('dbColumn', name) if column?
 
@@ -623,15 +636,12 @@ class exports.form extends exports.element
 	persistResult: (dbh, recordSet, primaryCallback) ->
 		recordNames = recordSet.recordNames()
 
-		console.log "Calling into async"
 		async.each recordNames, (item, callback) =>
 			recordSet.get(item).persist dbh, (err, rec) =>
-				console.log "Processing a record set: #{item}"
 				if err? then return callback err
 				recordSet.set item, rec
 				callback undefined
 		, (err) =>
-			console.log "Async finsihed, calling the callback"
 			if err?
 				primaryCallback err, undefined
 			else
@@ -669,6 +679,7 @@ class exports.field extends exports.element
 		@
 
 	getLabel: ->
+		@label
 
 
 	setLabel: (newName) ->
@@ -682,7 +693,7 @@ class exports.field extends exports.element
 	renderLabelElement: ->
 		ele = super
 		if @label?
-			ele.concat @label.render()
+			ele.concat @label.render(@)
 		else
 			ele
 
@@ -863,12 +874,15 @@ class exports.label extends exports.element
 			else
 				@unsetAttribute 'for'
 
-
 	renderChildren: ->
+		ele = []
 		if @text?
-			[@text]
-		else
-			[]
+			ele = [@text]
+
+		if @linkedField? and @linkedField.getValidator().isRequired()
+			ele.push '<em title="This field is required" class="required">*</em>'
+
+		ele
 
 	forField: (f) ->
 		@linkedField = f

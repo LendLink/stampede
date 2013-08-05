@@ -72,7 +72,6 @@ class exports.cache
 		@table = {}
 
 
-
 ###
 # Database connection details
 ###
@@ -194,6 +193,10 @@ class exports.column extends utils.extendEvents
 
 	getValidator: ->
 		@validator
+
+	setValidator: (v) ->
+		@validator = v
+		@
 
 	getFormFieldType: ->
 		@formFieldType ? 'text'
@@ -328,10 +331,10 @@ class exports.record
 		@columnValidator[col] = v
 		@
 
-	isValid: ->
+	isValid: (recordSet, iAm) ->
 		valid = true
 		for col, v of @columnValidator
-			if v.validate(@data[col], @) is false then valid = false
+			if v.validate(@data[col], @, recordSet, iAm) is false then valid = false
 		valid
 
 	hasErrors: (col) ->
@@ -383,6 +386,11 @@ class exports.record
 			@data[col] = value
 			@modified[col] = true
 			@
+
+	addColumn: (colName, colDef, data) ->
+		@columns[colName] = colDef
+		@data[colName] = data
+		@
 
 	getColumn: (col) ->
 		@columns[col]
@@ -884,6 +892,17 @@ buildPrimaryKeys = (pks, pkDef) ->
 ###
 # Additional column types
 ###
+
+class exports.virtual extends exports.column
+	type:				'virtual'
+
+	constructor: ->
+		super
+		@includeRules.insert = false
+		@includeRules.select = false
+		@includeRules.insert = false
+		@includeRules.update = false
+
 
 class exports.integer extends exports.column
 	type: 				'integer'
