@@ -192,6 +192,9 @@ class exports.column extends utils.extendEvents
 		@name = name
 		@
 
+	getValidator: ->
+		@validator
+
 	getFormFieldType: ->
 		@formFieldType ? 'text'
 
@@ -310,14 +313,38 @@ class exports.record
 	data:				undefined
 	modified:			undefined
 	table:				undefined
+	columnValidator:	undefined
 
 	constructor: (setTable) ->
 		@columns = {}
 		@data = {}
 		@modified = {}
+		@columnValidator = {}
 
 		if setTable?
 			@setTable(setTable)
+
+	setValidator: (col, v) ->
+		@columnValidator[col] = v
+		@
+
+	isValid: ->
+		valid = true
+		for col, v of @columnValidator
+			if v.validate(@data[col], @) is false then valid = false
+		valid
+
+	hasErrors: (col) ->
+		if @columnValidator[col]? then @columnValidator[col].hasErrors() else false
+
+	hasWarnings: (col) ->
+		if @columnValidator[col]? then @columnValidator[col].hasWarnings() else false
+
+	getErrors: (col) ->
+		if @columnValidator[col]? then @columnValidator[col].getErrors() else false
+
+	getWarnings: (col) ->
+		if @columnValidator[col]? then @columnValidator[col].getWarnings() else false
 
 	setTable: (setTable) ->
 		@table = setTable

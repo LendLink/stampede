@@ -6,6 +6,7 @@
 
 dba = require './dba'
 utils = require './utils'
+stValidator = require './validator'
 async = require 'async'
 
 class idIndex
@@ -47,6 +48,32 @@ class idIndex
 		@index
 
 
+class exports.recordSet
+	records:		undefined
+
+	constructor: ->
+		@records = {}
+
+	setRecord: (key, rec) ->
+		@records[key] = rec
+		@
+
+	recordNames: ->
+		(n for n of records)
+
+	get: (key) ->
+		@records[key]
+
+	set: (key, rec) ->
+		@setRecord(key, rec)
+
+	isValid: ->
+		valid = true
+		
+		for k, r of @records
+			if r.isValid() is false then valid = false
+
+		valid
 
 class exports.element extends utils.extendEvents
 	htmlType:		undefined			# HTML element type
@@ -58,8 +85,9 @@ class exports.element extends utils.extendEvents
 	childFields:	undefined			# Child elements
 	rendered:		false				# If the element has been manually rendered or not
 	parentForm:		undefined			# If we're an embedded form then this is our parent
+	validator:		undefined			# The validator for this form element
 
-	constructor: (id, name = 'form', parentForm) ->
+	constructor: (id, name = 'form', parentForm, useValidator) ->
 		super
 
 		if parentForm?
@@ -74,9 +102,21 @@ class exports.element extends utils.extendEvents
 		@flags = {}
 		@childFields = []
 		@properties = {}
+		@validator = useValidator ? (new stValidator.Validator())
 
 		if id? then @setId(id)
 		if name? then @setAttribute('name', name)
+
+	setValidator: (v) ->
+		@validator = v
+		@
+
+	getValidator: ->
+		@validator
+
+	addRule: (rule, args, errStr) ->
+		@validator.addRule(rule, args, errStr)
+		@
 
 	embedForm: (form) ->
 		childName = form.getAttribute('name')
@@ -96,6 +136,10 @@ class exports.element extends utils.extendEvents
 
 		@
 
+
+	setValue: (val) ->
+		@setAttribute('value', val)
+		@
 
 	setParentForm: (form) ->
 		@parentForm = form
@@ -235,19 +279,31 @@ class exports.element extends utils.extendEvents
 
 		ele = @renderPrefixElements()
 		ele = ele.concat @renderLabelElement() unless options.skipLabel? and options.skipLabel is true
+		ele = ele.concat @renderErrorElement() if options.includeErrors? and options.includeErrors is true
 
-		if children.length > 0
+		if children.length > 0 or @htmlType is 'select'
 			ele.push "<#{@htmlType} #{renderedAttributes.join(' ')}>" if @shouldRenderTag() 
 			ele = ele.concat children
 			ele.push "</#{@htmlType}>" if @shouldRenderTag() 
 		else
-			ele.push("<#{@htmlType} #{renderedAttributes.join(' ')} />") if @shouldRenderTag() 
+			ele.push("<#{@htmlType} #{renderedAttributes.join(' ')} />") if @shouldRenderTag()
+
 		ele = ele.concat @renderPostfixElements()
 
 		# if @htmlType is 'form'
 		# 	console.log "Full render stack for element of type #{@htmlType}:"
 		# 	console.log ele
 		ele
+
+	renderErrorElement: (options = {}, overrideErrors) ->
+		errList = []
+		
+		for err in overrideErrors ? @validator.getErrors()
+			errList.push "<span class=\"#{options.errorClass ? 'help-block'}\">"
+			errList.push err
+			errList.push '</span>'
+		
+		errList
 
 	renderChildren: ->
 		ele = []
@@ -264,6 +320,19 @@ class exports.element extends utils.extendEvents
 	renderPostfixElements: ->
 		[]
 
+	getGlobalErrors: ->
+		ele = [].concat @globalErrors
+		for f in @childFields
+			if f instanceof exports.hidden
+				ele = ele.concat f.getValidator().getErrors()
+			else if f instanceof exports.form
+				ele = ele.concat f.getGlobalErrors()
+		ele
+
+	renderGlobalErrors: (options)->
+		errs = @getGlobalErrors()
+		@renderErrorElement(options, errs).join('')
+
 	renderLabel: (id) ->
 		field = @getIdIndex().getById(id)
 		unless field? then throw "Could not find form field with id #{id}."
@@ -277,6 +346,19 @@ class exports.element extends utils.extendEvents
 
 		ele = field.renderElement({skipLabel: true})
 		ele.join('')
+
+	renderError: (id, renderOpts) ->
+		field = @getIdIndex().getById(id)
+		unless field? then throw "Could not find form field with id #{id}."
+
+		ele = field.renderErrorElement(renderOpts)
+		ele.join('')
+
+	hasErrors: (id) ->
+		field = @getIdIndex().getById(id)
+		unless field? then throw "Could not find form field with id #{id}."
+
+		field.getValidator().hasErrors()
 
 
 	renderAttributes: (useAttributes = @attributes, useFlags = @flags) ->
@@ -303,14 +385,16 @@ class exports.element extends utils.extendEvents
 			# are we a form object?
 			if f instanceof exports.form
 				recordKey = f.getProperty('formName')
-				recordSet[recordKey] = f.bindRecord ? f.model.createRecord()
+				recordSet.set recordKey, f.bindRecord ? f.model.createRecord()
 				f.bindChildRequest(req, recordSet, recordKey)
 			else
 				# We're a normal element, are we mapped to a DB column?
 				if f.getProperty('dbColumn')?
 					data = utils.extractFormField(req, f.getAttribute('name'))
 					# console.log "Map property #{f.getProperty('dbColumn')} to data #{data}."
-					recordSet[recordKey].set(f.getProperty('dbColumn'), data) if data?
+					recordSet.get(recordKey).set(f.getProperty('dbColumn'), data) if data?
+					recordSet.get(recordKey).setValidator f.getProperty('dbColumn'), f.getValidator()
+					f.setValue(data)
 
 				f.bindChildRequest(req, recordSet, recordKey)
 
@@ -323,6 +407,7 @@ class exports.form extends exports.element
 	model:			undefined
 	bindRecord:		undefined
 	csrfField:		undefined
+	globalErrors:	undefined
 
 	constructor: (id = 'f', name) ->
 		super id, name ? id
@@ -332,6 +417,14 @@ class exports.form extends exports.element
 		# Create the csrf field, it auto adds itself to the form
 		@csrfField = new exports.csrf()
 		@addField(@csrfField)
+
+		@globalErrors = []
+
+	addError: (errorStr) ->
+		@globalErrors.push errorStr
+
+	resetErrors: ->
+		@globalErrors = []
 
 	removeCSRF: ->
 		@removeField(@csrfField)
@@ -448,7 +541,10 @@ class exports.form extends exports.element
 		return @
 
 	processBindField: (formName, name, column, opts, options) ->
-		boundData = if @bindRecord? and @bindRecord.columnExists(name) then @bindRecord.get(name) else undefined
+		if @bindRecord? and @bindRecord.columnExists(name)
+			boundData = @bindRecord.get(name)
+			validator = @bindRecord.getColumn(name).getValidator()
+
 		newField = undefined
 		showLabel = false
 		# console.log "    column type is #{column.type} with form field type #{column.getFormFieldType()}"
@@ -488,10 +584,18 @@ class exports.form extends exports.element
 						showLabel = true
 
 				else
-					console.log "Unknown form column type #{column.getFormFieldType()}"
+					if column?
+						console.log "Unknown form column type #{column.getFormFieldType()}"
 
 		# Ignoring types which we don't understand..
 		if newField?
+			if validator?
+				newField.setValidator new stValidator.Validator(validator)
+
+			if opts.validate?
+				for r in opts.validate 
+					newField.addRule(r)
+
 			newField.setAttribute('name', "#{formName}[#{name}]")
 			newField.setProperty('dbColumn', name) if column?
 
@@ -508,23 +612,23 @@ class exports.form extends exports.element
 			@addField(newField)
 	
 	bindRequest: (req) ->
-		recordSet = {}
+		recordSet = new exports.recordSet()
 
 		recordKey = @getProperty('formName')
-		recordSet[recordKey] = @bindRecord ? @model.createRecord()
+		recordSet.setRecord recordKey, @bindRecord ? @model.createRecord()
 		@bindChildRequest(req, recordSet, recordKey)
 
 		recordSet
 
 	persistResult: (dbh, recordSet, primaryCallback) ->
-		recordNames = (n for n of recordSet)
+		recordNames = recordSet.recordNames()
 
 		console.log "Calling into async"
 		async.each recordNames, (item, callback) =>
-			recordSet[item].persist dbh, (err, rec) =>
+			recordSet.get(item).persist dbh, (err, rec) =>
 				console.log "Processing a record set: #{item}"
 				if err? then return callback err
-				recordSet[item] = rec
+				recordSet.set item, rec
 				callback undefined
 		, (err) =>
 			console.log "Async finsihed, calling the callback"
@@ -613,6 +717,9 @@ class exports.password extends exports.field
 		super id, form
 		@setAttribute 'type', 'password'
 
+	setValue: (val) ->
+		@
+
 
 class exports.submit extends exports.field
 	constructor: (id, form) ->
@@ -687,7 +794,8 @@ class exports.multichoice extends exports.field
 					out.push "<option value=\"#{option.value ? option.name}\"#{selected}>#{option.label}</option>"
 			when 'checkbox'
 				for option in @options
-					checked = if @selected[option.id] then ' checked="checked"' else ''
+					# checked = if @selected[option.id] then ' checked="checked"' else ''
+					checked = if @selected[option.value] then ' checked="checked"' else ''
 					attr = utils.clone @getAttributes()
 					if option.value? then attr.value = option.value
 					attr.id = option.id ? @getIdIndex().genUniqueId(attr.id)
@@ -696,7 +804,8 @@ class exports.multichoice extends exports.field
 					if option.label? then out.push " #{option.label}</label>"
 			when 'radio'
 				for option in @options
-					checked = if @selected[option.id] then ' checked="checked"' else ''
+					# checked = if @selected[option.id] then ' checked="checked"' else ''
+					checked = if @selected[option.value] then ' checked="checked"' else ''
 					attr = utils.clone @getAttributes()
 					if option.value? then attr.value = option.value
 					attr.id = option.id ? @getIdIndex().genUniqueId(attr.id)
@@ -705,6 +814,24 @@ class exports.multichoice extends exports.field
 					if option.label? then out.push " #{option.label}</label>"
 		out
 
+	getOptionId: (val) ->
+		switch @displayAs
+			when 'select'
+				for o in @options
+					if val is (o.value ? o.name) then return val
+			when 'checkbox', 'radio'
+				for o in @options
+					if val is o.value then return val
+
+		return undefined
+
+	setValue: (val) ->
+		id = @getOptionId(val)
+		if id? then @setSelected(id)
+		else
+			console.log "Multichoice:"
+			console.log val
+		@
 
 
 
