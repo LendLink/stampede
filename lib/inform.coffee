@@ -9,6 +9,8 @@ utils = require './utils'
 stValidator = require './validator'
 async = require 'async'
 
+
+
 class idIndex
 	index: undefined
 	uniqueCounter: undefined
@@ -359,7 +361,7 @@ class exports.element extends utils.extendEvents
 		ele = field.renderErrorElement(renderOpts)
 		ele.join('')
 
-	hasErrors: (id) ->
+	hasError: (id) ->
 		field = @getIdIndex().getById(id)
 		unless field? then throw "Could not find form field with id #{id}."
 
