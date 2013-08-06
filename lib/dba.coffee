@@ -977,6 +977,11 @@ class exports.boolean extends exports.column
 		super
 
 		@addValidationRule (val) ->
+			if val is 'true' or val is 'on' or val is 1 or val is '1'
+				val = true
+			else if val is 'false' or val is 'off' or val is 0 or val is '0'
+				val = false
+				
 			unless val is true or val is false or val is undefined or val is null
 				return "Boolean values can only be set to true, false, or null / undefined not #{val}."
 			true
