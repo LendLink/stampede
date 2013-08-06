@@ -571,6 +571,11 @@ class exports.form extends exports.element
 					showLabel = true
 					if boundData? then newField.setAttribute('value', boundData)
 
+				when 'hidden'
+					newField = new exports.hidden(name)
+					showLabel = false
+					if boundData? then newField.setAttribute('value', boundData)
+
 				when 'textarea'
 					newField = new exports.textArea(name)
 					showLabel = true
