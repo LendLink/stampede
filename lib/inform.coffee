@@ -116,12 +116,12 @@ class exports.element extends utils.extendEvents
 
 	dump: (depth = 0) ->
 		indent = ('  ' for i in [0..depth]).join('')
-		console.log "#{indent} - #{htmlType} : id = #{@getAttribute('id')}"
+		console.log "#{indent} - #{@htmlType} : id = #{@getAttribute('id')}"
 		for attr, val of @attributes
 			console.log "#{indent}   - Attribute '#{attr}' = '#{val}'"
 		for prop, val of @properties
 			console.log "#{indent}   - Property '#{prop}' = '#{val}'"
-		for child of childFields
+		for child in @childFields
 			child.dump(depth + 1)
 
 	setValidator: (v) ->
