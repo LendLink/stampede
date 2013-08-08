@@ -142,6 +142,7 @@ class exports.element extends utils.extendEvents
 		form.setAttribute('name', @formNameIndex.makeUniqueId(childName))
 		form.setParentForm(@)
 		form.reindexIds(@idIndex)
+		@setIdIndex(@idIndex)
 		@addChildField(form)
 
 	reindexIds: (newIdIndex) ->
