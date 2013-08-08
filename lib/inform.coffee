@@ -114,6 +114,16 @@ class exports.element extends utils.extendEvents
 		if id? then @setId(id)
 		if name? then @setAttribute('name', name)
 
+	dump: (depth = 0) ->
+		indent = ('  ' for i in [0..depth]).join('')
+		console.log "#{indent} - #{htmlType} : id = #{@getAttribute('id')}"
+		for attr, val of @attributes
+			console.log "#{indent}   - Attribute '#{attr}' = '#{val}'"
+		for prop, val of @properties
+			console.log "#{indent}   - Property '#{prop}' = '#{val}'"
+		for child of childFields
+			child.dump(depth + 1)
+
 	setValidator: (v) ->
 		@validator = v
 		@
@@ -254,6 +264,8 @@ class exports.element extends utils.extendEvents
 					@childFields.splice(pointer, 1)
 					if @idIndex? then @idIndex.removeObj @attributes.id
 					return @
+				else
+					field.removeChildField id
 
 				pointer++
 		else
@@ -262,6 +274,8 @@ class exports.element extends utils.extendEvents
 					@childFields.splice(pointer, 1)
 					if @idIndex? then @idIndex.removeObj @attributes.id
 					return @
+				else
+					field.removeChildField id
 
 				pointer++
 
