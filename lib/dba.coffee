@@ -488,7 +488,7 @@ class exports.record
 
 	allPrimaryKeysSet: ->
 		for col in @table.getPrimaryKeys()
-			return false unless @isModified(col) is true
+			return false unless @data[col]?
 		true
 
 	toJson: ->
