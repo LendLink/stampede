@@ -125,9 +125,11 @@ class root.rule
 				@['init_'+type]()
 
 	dump: (indent) ->
-		if @['dump_'+type]? then @['dump_'+type](indent)
+		if @['dump_'+@type]? then @['dump_'+@type](indent)
 		else
-			console.log "Rule #{type}: #{if @args then nodeUtil.inspect(@args) else ''}"
+			console.log "#{indent} Rule #{type}: #{if @args then nodeUtil.inspect(@args) else ''}"
+			console.log "#{indent}    - Error string override: #{@errorString}" if @errorString
+			console.log "#{indent}    - Warning string override: #{@warningString}" if @warningString
 
 
 
