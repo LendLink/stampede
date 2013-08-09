@@ -264,11 +264,13 @@ class root.rule
 		unless val? and val.length > 0 then return undefined
 
 		fmt = args ? field.getProperty('format') ? 'DD/MM/YYYY'
-		console.log 'DATE VALIDATION - ' + fmt
-		console.log val
 		m = if moment.isMoment(val) then val else moment(val, fmt)
-		console.log m
 		if m.isValid() then return undefined
-		console.log 'invalid'
 		@error 'Invalid date'
 
+	# Select box, value must be one of the present options
+	rule_selectBox: (val, req, form, field) ->
+		unless val? and val.length > 0 then return undefined
+
+		if field.getOptionId(val)? then return undefined
+		@error 'Unknown option has been selected'

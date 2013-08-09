@@ -9,6 +9,7 @@ utils = require './utils'
 stValidator = require './validator'
 async = require 'async'
 moment = require 'moment'
+util = require 'util'
 
 
 
@@ -597,12 +598,12 @@ class exports.form extends exports.element
 
 		specialBind = undefined
 		fmt = undefined
+		addValidatorRules = []
 
 		if boundData? and moment.isMoment(boundData)
 			fmt = opts.dateFormat ? options.dateFormat ? 'DD/MM/YYYY'
 			specialBind = 'moment'
 			boundData = boundData.format fmt
-			console.log boundData
 
 		newField = undefined
 		showLabel = false
@@ -637,8 +638,12 @@ class exports.form extends exports.element
 
 				when 'choice'
 					newField = new exports.multichoice(name).setAttribute('name', name)
+					console.log ">>>> Mutli-choice should select #{boundData}"
 					newField.setOptions(opts.choices) if opts.choices?
 					newField.setSelected(opts.selected) if opts.selected?
+					newField.setSelected(boundData) if boundData?
+
+					addValidatorRules.push 'selectBox'
 
 					if opts.expanded? and opts.expanded is true
 						if opts.multiple? and opts.multiple is true then newField.setCheckbox()
@@ -656,13 +661,15 @@ class exports.form extends exports.element
 			if fmt? then newField.setProperty('format', fmt)
 			if specialBind? then newField.setProperty('specialBind', specialBind)
 
-
 			if validator?
 				newField.setValidator(new stValidator.Validator(validator))
 
 			if opts.validate?
 				for r in opts.validate
 					newField.addRule(r)
+
+			for r in addValidatorRules
+				newField.addRule(r)
 
 			newField.setProperty('fieldName', name)
 			newField.setAttribute('name', "#{formName}[#{name}]")
@@ -811,6 +818,15 @@ class exports.multichoice extends exports.field
 				when 'checkbox' then @htmlType = undefined
 				when 'radio' then @htmlType = undefined
 
+	dump: (indent) ->
+		super indent
+
+		console.log "#{indent} - Display as: #{@displayAs}"
+		console.log "#{indent} - Options:"
+		for opt in @options
+			console.log "#{indent}   - #{util.inspect(opt)}"
+
+		console.log "#{indent} - Selected: #{util.inspect(@selected)}"
 
 	setOptions: (list) ->
 		@options = list
@@ -885,7 +901,7 @@ class exports.multichoice extends exports.field
 		switch @displayAs
 			when 'select'
 				for o in @options
-					if val is (o.value ? o.name) then return val
+					if ''+val is ''+(o.value ? o.name) then return val
 			when 'checkbox', 'radio'
 				for o in @options
 					if val is o.value then return val
