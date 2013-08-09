@@ -137,6 +137,9 @@ class exports.element extends utils.extendEvents
 	getValidator: ->
 		@validator
 
+	addError: (errStr) ->
+		@validator.addNotice 'error', errStr
+
 	addRule: (rule, args, errStr) ->
 		@validator.addRule(rule, args, errStr)
 		@
@@ -455,7 +458,7 @@ class exports.form extends exports.element
 
 		@globalErrors = []
 
-	addError: (errorStr) ->
+	addGlobalError: (errorStr) ->
 		@globalErrors.push errorStr
 
 	resetErrors: ->

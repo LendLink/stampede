@@ -47,6 +47,11 @@ class root.Validator
 		@notices = { error: [], warning: [], info: []}
 		@
 
+	addNotice: (type, msg) ->
+		@notices[type] ?= []
+		@notices[type].push msg
+		@
+
 	addRule: (rule, args, errStr) ->
 		if rule instanceof root.rule
 			# rule is good

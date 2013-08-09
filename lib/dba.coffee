@@ -1003,7 +1003,9 @@ class exports.date extends exports.column
 			return val
 
 		@onCall 'set_value', (ev, val) ->
-			if val? then return new moment(val)
+			if val?
+				if /^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(val) then return new moment(val, "DD/MM/YYYY")
+				return new moment(val)
 			undefined
 
 		@onCall 'serialise', (ev, val) ->
