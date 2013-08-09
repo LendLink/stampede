@@ -376,6 +376,12 @@ class exports.element extends utils.extendEvents
 		ele = field.renderLabelElement()
 		ele.join('')
 
+	renderHelp: (id) ->
+		field = @getIdIndex().getById(id)
+		unless field? then throw "Could not find form field with id #{id}."
+
+		field.getProperty('helpText') ? ''
+
 	renderInput: (id) ->
 		field = @getIdIndex().getById(id)
 		unless field? then throw "Could not find form field with id #{id}."
@@ -638,7 +644,6 @@ class exports.form extends exports.element
 
 				when 'choice'
 					newField = new exports.multichoice(name).setAttribute('name', name)
-					console.log ">>>> Mutli-choice should select #{boundData}"
 					newField.setOptions(opts.choices) if opts.choices?
 					newField.setSelected(opts.selected) if opts.selected?
 					newField.setSelected(boundData) if boundData?
@@ -670,6 +675,8 @@ class exports.form extends exports.element
 
 			for r in addValidatorRules
 				newField.addRule(r)
+
+			if opts.help? then newField.setProperty('helpText', opts.help)
 
 			newField.setProperty('fieldName', name)
 			newField.setAttribute('name', "#{formName}[#{name}]")
