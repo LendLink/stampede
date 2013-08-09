@@ -3,6 +3,7 @@
 ###
 
 utils = require './utils'
+nodeUtil = require 'util'
 
 
 root = exports ? this
@@ -20,6 +21,20 @@ class root.Validator
 		if clone?
 			for k,r in clone.ruleList
 				@ruleList[k] = new root.rule(r)
+
+	dump: (indent) ->
+		if @ruleList and Object.keys(@ruleList).length > 0
+			console.log indent + ' - Validation rules'
+			for r, rule of @ruleList
+				rule.dump(indent + '  ')
+		else
+			console.log indent + ' - No validation rules'
+
+		for type, errs of @notices
+			if errs.length > 0
+				console.log "#{indent} #{type}:"
+				for e in errs
+					console.log "#{indent}   #{e}"
 
 	setRequired: (val) ->
 		@fieldRequired = val
@@ -108,6 +123,12 @@ class root.rule
 
 			if @['init_'+type]?
 				@['init_'+type]()
+
+	dump: (indent) ->
+		if @['dump_'+type]? then @['dump_'+type](indent)
+		else
+			console.log "Rule #{type}: #{if @args then nodeUtil.inspect(@args) else ''}"
+
 
 
 	getType: ->

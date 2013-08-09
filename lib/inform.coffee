@@ -61,7 +61,7 @@ class exports.recordSet
 		@
 
 	recordNames: ->
-		(n for n of records)
+		(n for n of @records)
 
 	get: (key) ->
 		@records[key]
@@ -114,15 +114,21 @@ class exports.element extends utils.extendEvents
 		if id? then @setId(id)
 		if name? then @setAttribute('name', name)
 
-	dump: (depth = 0) ->
-		indent = ('  ' for i in [0..depth]).join('')
-		console.log "#{indent} - #{@htmlType} : id = #{@getAttribute('id')}"
+	dump: (indent = '') ->
+		console.log "#{indent} #{@htmlType} : id = #{@getAttribute('id')} : rendered = #{@rendered}"
+
 		for attr, val of @attributes
-			console.log "#{indent}   - Attribute '#{attr}' = '#{val}'"
+			console.log "#{indent} - Attribute '#{attr}' = '#{val}'"
 		for prop, val of @properties
-			console.log "#{indent}   - Property '#{prop}' = '#{val}'"
-		for child in @childFields
-			child.dump(depth + 1)
+			console.log "#{indent} - Property '#{prop}' = '#{val}'"
+
+		if @validator then @validator.dump(indent)
+
+		if @childFields and @childFields.length > 0
+			console.log "#{indent}  - Child Fields:"
+			indent += '    '
+			for child in @childFields
+				child.dump(indent)
 
 	setValidator: (v) ->
 		@validator = v

@@ -366,7 +366,7 @@ class exports.record
 	getParent: -> @parentTable
 
 	dump: (indent = '') ->
-		console.log "#{indent}Table #{@table.tableName()}"
+		console.log "#{indent}Table #{@table.tableName()} (all primary keys set is #{@allPrimaryKeysSet()})"
 		for f of @columns
 			mod = if @modified[f] then ' (modified)' else ''
 			if @columns[f].getType() is 'map'
@@ -376,6 +376,8 @@ class exports.record
 				else console.log indent+'    <null>'
 			else
 				console.log "#{indent}  #{f} of type #{@columns[f].getType()} = #{@data[f]}#{mod}"
+
+			if @columnValidator[f] then @columnValidator[f].dump(indent + '  ')
 	
 	set: (col, value) ->
 		if @table?
