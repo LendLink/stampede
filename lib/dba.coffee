@@ -334,7 +334,7 @@ class exports.record
 	isValid: (recordSet, iAm) ->
 		valid = true
 		for col, v of @columnValidator
-			if v.validate(@data[col], @, recordSet, iAm) is false then valid = false
+			if v.isValid() is false then valid = false
 		valid
 
 	hasErrors: (col) ->

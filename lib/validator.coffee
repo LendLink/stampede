@@ -4,6 +4,7 @@
 
 utils = require './utils'
 nodeUtil = require 'util'
+moment = require 'moment'
 
 
 root = exports ? this
@@ -66,11 +67,11 @@ class root.Validator
 		@
 
 
-	validate: (value, record, recordSet, mySet) ->
+	validate: (value, req, formData, field) ->
 		@reset()
 
 		for t, rule of @ruleList
-			err = rule.validate(value, record, recordSet, mySet)
+			err = rule.validate(value, req, formData, field)
 			
 			@notices.info.push {'rule': t, result: err}
 
@@ -82,6 +83,9 @@ class root.Validator
 					@notices.error.push err
 		
 		if @hasErrors() then false else true
+
+	isValid: ->
+		if @notices.error.length > 0 then false else true
 
 	hasErrors: ->
 		if @notices.error.length > 0 then true else false
@@ -167,8 +171,8 @@ class root.rule
 	warning: (str) ->
 		if @errorString then @errorString else str
 
-	validate: (val, record, recordSet, mySet) ->
-		if @['rule_'+@type]? then @['rule_'+@type](val, record, recordSet, mySet) else undefined
+	validate: (val, req, formData, field) ->
+		if @['rule_'+@type]? then @['rule_'+@type](val, req, formData, field) else undefined
 
 	### Validation Rules ###
 
@@ -217,6 +221,8 @@ class root.rule
 
 	# Email Address
 	rule_email: (val) ->
+		unless val? and val.length > 0 then return undefined
+
 		if /^[^@]+@[^@]+$/.test(val)
 			if /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.(?:[A-Z]{2}|com|org|net|edu|gov|mil|biz|info|mobi|name|aero|asia|jobs|museum)$/i.test(val)
 				return undefined
@@ -224,31 +230,25 @@ class root.rule
 				return {warning: @warning('Badly formatted email address')}
 		@error 'Invalid email address'
 
-
-	# Cross reference another field and make sure they match
-	rule_matchRecord: (val, record, recordSet, mySet) ->
-		unless @args.column?
-			return 'Column to check against not specified'
-
-		unless record.columnExists(@args.column)
-			return "Column #{@args.column} does not exist to check against"
-
-		if record.get(@args.column) is val then return undefined
-		@error "Does not match #{record.getColumn(@args.column).getLabel()} field"
-
 	# Cross reference another password field
-	rule_matchPassword: (val, record, recordSet, mySet) ->
-		unless @args.column?
-			return 'Column to check against not specified'
+	rule_matchField: (val, req, form) ->
+		unless @args.field?
+			return 'Field to check against not specified'
 
-		unless record.columnExists(@args.column)
-			return "Column #{@args.column} does not exist to check against"
+		compField = form.getFieldById(@args.field)
+		unless compField? then return "Field #{@args.field} not found within the form."
 
-		if record.checkPassword(@args.column, val) then return undefined
-		@error "Does not match #{record.getColumn(@args.column).getLabel()} field"
+		compVal = utils.extractFormField(req, compField.getAttribute('name'))
+
+		unless compVal?
+			return "No form data for field #{@args.field}."
+
+		if compVal is val then return undefined
+		@error "Does not match #{@args.field} field"
 
 	# Generic regex rule
 	rule_regex: (val) ->
+		unless val? and val.length > 0 then return undefined
 		unless @args.match? then return 'No regex specified'
 
 		if @args.match instanceof RegExp
@@ -259,4 +259,16 @@ class root.rule
 		if re.test(val) then return undefined
 		@error "Incorrect data entered"
 
+	# Date
+	rule_date: (val, req, form, field) ->
+		unless val? and val.length > 0 then return undefined
+
+		fmt = args ? field.getProperty('format') ? 'DD/MM/YYYY'
+		console.log 'DATE VALIDATION - ' + fmt
+		console.log val
+		m = if moment.isMoment(val) then val else moment(val, fmt)
+		console.log m
+		if m.isValid() then return undefined
+		console.log 'invalid'
+		@error 'Invalid date'
 

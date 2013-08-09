@@ -8,6 +8,7 @@ dba = require './dba'
 utils = require './utils'
 stValidator = require './validator'
 async = require 'async'
+moment = require 'moment'
 
 
 
@@ -165,7 +166,10 @@ class exports.element extends utils.extendEvents
 
 
 	setValue: (val) ->
-		@setAttribute('value', val)
+		if moment.isMoment(val)
+			@setAttribute('value', val.format(@getProperty('format') ? 'DD/MM/YYYY'))
+		else
+			@setAttribute('value', val)
 		@
 
 	setParentForm: (form) ->
@@ -421,8 +425,15 @@ class exports.element extends utils.extendEvents
 			else
 				data = utils.extractFormField(req, f.getAttribute('name'))
 
+				# Check if we're valid
+				f.getValidator().reset()
+				if f.getValidator().validate(data, req, @, f) is false then valid = false else valid = true
+
 				# We're a normal element, are we mapped to a DB column?
-				if f.getProperty('dbColumn')?
+				if f.getProperty('dbColumn')? and valid is true
+					if f.getProperty('specialBind') is 'moment'
+						data = moment(data, f.getProperty('format') ? 'DD/MM/YYYY')
+
 					# console.log "Map property #{f.getProperty('dbColumn')} to data #{data}."
 					recordSet.get(recordKey).set(f.getProperty('dbColumn'), data) if data?
 					recordSet.get(recordKey).setValidator f.getProperty('dbColumn'), f.getValidator()
@@ -433,6 +444,7 @@ class exports.element extends utils.extendEvents
 					newCol.setValidator f.getValidator()
 					recordSet.get(recordKey).addColumn f.getProperty('fieldName'), newCol, data
 					recordSet.get(recordKey).setValidator f.getProperty('fieldName'), newCol.getValidator()
+					f.setValue(data)
 
 				f.bindChildRequest(req, recordSet, recordKey)
 
@@ -583,6 +595,15 @@ class exports.form extends exports.element
 			boundData = @bindRecord.get(name)
 			validator = @bindRecord.getColumn(name).getValidator()
 
+		specialBind = undefined
+		fmt = undefined
+
+		if boundData? and moment.isMoment(boundData)
+			fmt = opts.dateFormat ? options.dateFormat ? 'DD/MM/YYYY'
+			specialBind = 'moment'
+			boundData = boundData.format fmt
+			console.log boundData
+
 		newField = undefined
 		showLabel = false
 		# console.log "    column type is #{column.type} with form field type #{column.getFormFieldType()}"
@@ -632,6 +653,10 @@ class exports.form extends exports.element
 
 		# Ignoring types which we don't understand..
 		if newField?
+			if fmt? then newField.setProperty('format', fmt)
+			if specialBind? then newField.setProperty('specialBind', specialBind)
+
+
 			if validator?
 				newField.setValidator(new stValidator.Validator(validator))
 
