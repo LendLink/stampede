@@ -792,6 +792,9 @@ class exports.textArea extends exports.field
 	renderChildren: ->
 		[@text]
 
+	setValue: (t) ->
+		@setText t
+
 
 class exports.password extends exports.field
 	constructor: (id, form) ->
