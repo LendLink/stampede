@@ -1000,7 +1000,7 @@ class exports.date extends exports.column
 		@onCall 'pre_get_value', (ev, val) ->
 			if val? then return new moment(val)
 			if @doDefaultNow then return new moment()
-			return val
+			return undefined
 
 		@onCall 'set_value', (ev, val) ->
 			if val?
@@ -1009,8 +1009,7 @@ class exports.date extends exports.column
 			undefined
 
 		@onCall 'serialise', (ev, val) ->
-			if val?
-				unless val instanceof moment then val = new moment(val)
+			if val? and val instanceof moment
 				return val.format 'YYYY-MM-DD'
 			undefined
 
