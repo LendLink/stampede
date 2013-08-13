@@ -1009,7 +1009,7 @@ class exports.date extends exports.column
 			undefined
 
 		@onCall 'serialise', (ev, val) ->
-			if val? and val instanceof moment
+			if val? and moment.isMoment(val)
 				return val.format 'YYYY-MM-DD'
 			undefined
 
@@ -1040,8 +1040,7 @@ class exports.timestamp extends exports.column
 			undefined
 
 		@onCall 'serialise', (ev, val) ->
-			if val?
-				unless val instanceof moment then val = new moment(val)
+			if val? and moment.isMoment(val)
 				return val.format 'YYYY-MM-DD HH:mm:ss.SSSZ'
 			undefined
 
