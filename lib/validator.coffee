@@ -230,7 +230,7 @@ class root.rule
 				return {warning: @warning('Badly formatted email address')}
 		@error 'Invalid email address'
 
-	# Cross reference another password field
+	# Cross reference another form field
 	rule_matchField: (val, req, form) ->
 		unless @args.field?
 			return 'Field to check against not specified'
@@ -245,6 +245,22 @@ class root.rule
 
 		if compVal is val then return undefined
 		@error "Does not match #{@args.field} field"
+
+	# Cross reference another form field
+	rule_notMatchField: (val, req, form) ->
+		unless @args.field?
+			return 'Field to check against not specified'
+
+		compField = form.getFieldById(@args.field)
+		unless compField? then return "Field #{@args.field} not found within the form."
+
+		compVal = utils.extractFormField(req, compField.getAttribute('name'))
+
+		unless compVal?
+			return "No form data for field #{@args.field}."
+
+		unless compVal is val then return undefined
+		@error "Has the same value as the #{@args.field} field"
 
 	# Generic regex rule
 	rule_regex: (val) ->
