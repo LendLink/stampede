@@ -45,10 +45,19 @@ class User extends dba.table
 		salt:					new dba.varchar(100).notNull()
 		created:				new dba.timestamp().defaultNow()
 		sex:					new dba.enum('male', 'female', 'other').notNull().setDbType('sex_type')
-		salutation:				new dba.map(Salutation).notNull().setToStringField('label')
+		# salutation:				new dba.map(Salutation).notNull().setToStringField('label')
+		salutation:				new dba.link(Salutation, 'one to one', 'id').setToStringField('label')
 	@primaryKeys:				['id']
 	@recordClass:				UserObj
 
+User.select undefined, {
+	filter:
+		username: 'geoff'
+	join:
+		'salutation'
+}
+
+process.exit()
 
 # pg = require 'pg'
 # pg.connect "pg://dbatest:dbatest88@localhost/dbatest", (err, client, done) ->

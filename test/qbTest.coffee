@@ -4,7 +4,6 @@
 
 stampede = require '../lib/stampede'
 dba = stampede.dba
-qb = stampede.qb
 
 class AddressType extends dba.table
 	@dbTable:					'address_type'
@@ -40,11 +39,8 @@ class User extends dba.table
 
 
 q = new stampede.queryBuilder.query()
-q.baseTable(User)
-	.join(Address)
-	.where({active: true, organisation: null})
-	.orWhere(qb.gt('id', 17))
-	.join(AddressType).where()
-q.pager({perPage: 10, page: 1})
-q.toSql()
-
+usrTable = q.baseTable 'usr'
+usrTable.addField('id', 'usr_id').addField('first_name').addField('last_name')
+q.innerJoin 'profile', {user_id: usrTable.getColumnAlias('id')}
+# usrTable.where('last_name', '=', 'smith')
+console.log q.renderQuery()

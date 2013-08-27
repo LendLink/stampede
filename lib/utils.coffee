@@ -105,3 +105,41 @@ exports.extractFormFieldPath = (obj, path) ->
 exports.extractFormField = (req, path) ->
 	exports.extractFormFieldPath(req.body, path)
 
+
+class exports.idIndex
+	index: undefined
+	uniqueCounter: undefined
+
+	constructor: ->
+		@index = {}
+		@uniqueCounter = {}
+
+	saveObj: (id, obj, oldId) ->
+		if oldId? then @removeObj oldId
+		if id?
+			if obj? then @index[id] = obj
+			else delete @index[id]
+		return @
+
+	removeObj: (id) ->
+		if @index[id]?
+			delete @index[id]
+		return @
+
+	getById: (id) ->
+		@index[id]
+
+	idExists: (id) ->
+		if @index[id]? then return true
+		return false
+
+	genUniqueId: (prefix = '', startId = 0) ->
+		@uniqueCounter[prefix] ?= startId
+		id = prefix + '_' + (++@uniqueCounter[prefix])
+		if @idExists(id) then @genUniqueId(prefix) else id
+
+	makeUniqueId: (prefix = '') ->
+		if @idExists(prefix) then @genUniqueId(prefix, 1) else prefix
+
+	allItems: ->
+		@index

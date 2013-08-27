@@ -13,45 +13,6 @@ util = require 'util'
 
 
 
-class idIndex
-	index: undefined
-	uniqueCounter: undefined
-
-	constructor: ->
-		@index = {}
-		@uniqueCounter = {}
-
-	saveObj: (id, obj, oldId) ->
-		if oldId? then @removeObj oldId
-		if id?
-			if obj? then @index[id] = obj
-			else delete @index[id]
-		return @
-
-	removeObj: (id) ->
-		if @index[id]?
-			delete @index[id]
-		return @
-
-	getById: (id) ->
-		@index[id]
-
-	idExists: (id) ->
-		if @index[id]? then return true
-		return false
-
-	genUniqueId: (prefix = '', startId = 0) ->
-		@uniqueCounter[prefix] ?= startId
-		id = prefix + '_' + (++@uniqueCounter[prefix])
-		if @idExists(id) then @genUniqueId(prefix) else id
-
-	makeUniqueId: (prefix = '') ->
-		if @idExists(prefix) then @genUniqueId(prefix, 1) else prefix
-
-	allItems: ->
-		@index
-
-
 class exports.recordSet
 	records:		undefined
 
@@ -103,7 +64,7 @@ class exports.element extends utils.extendEvents
 			@formNameIndex = parentForm.getFormNameIndex()
 			@parentForm = parentForm
 		else
-			@formNameIndex = new idIndex()
+			@formNameIndex = new utils.idIndex()
 	
 		name = @formNameIndex.makeUniqueId('name')
 
@@ -469,7 +430,7 @@ class exports.form extends exports.element
 	constructor: (id = 'f', name) ->
 		super id, name ? id
 
-		@setIdIndex(new idIndex())
+		@setIdIndex(new utils.idIndex())
 
 		# Create the csrf field, it auto adds itself to the form
 		@csrfField = new exports.csrf()
