@@ -676,8 +676,8 @@ class exports.table
 						errObj = new exports.dbError("Invalid page '#{pagerInfo.page}' selected", sql, (options.bind ? []), "Database error when selecting record from table #{@dbTable}")
 						return callback(errObj, pagerInfo)
 
-					pagerInfo.nextPage = if pagerInfo.page < pagerInfo.totalPages then pagerInfo.page + 1 else undefined
-					pagerInfo.prevPage = if pagerInfo.page > 1 then pagerInfo.page - 1 else undefined
+					pagerInfo.nextPage = if pagerInfo.page < pagerInfo.totalPages then parseInt(pagerInfo.page,10)+1 else undefined
+					pagerInfo.prevPage = if pagerInfo.page > 1 then parseInt(pagerInfo.page,10)-1 else undefined
 					pagerInfo.pageRows = {
 						from:		(pagerInfo.page - 1) * pagerInfo.perPage + 1
 						to:			(pagerInfo.page) * pagerInfo.perPage
