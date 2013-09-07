@@ -392,11 +392,12 @@ class exports.record
 			if err? then return callback err, undefined
 
 			if column.getLinkType() is 'one to one'
-				unless options.skipSave is true
+				unless options.noCache is true
 					@linkedRecords[col] = res[0]
 
 				callback undefined, res[0]
 			else
+				if options.saveCache is true then @linkedRecords[col] = res
 				callback undefined, res
 
 	getTable: ->
