@@ -13,37 +13,6 @@ util = require 'util'
 
 
 
-class exports.recordSet
-	records:		undefined
-
-	constructor: ->
-		@records = {}
-
-	setRecord: (key, rec) ->
-		@records[key] = rec
-		@
-
-	recordNames: ->
-		(n for n of @records)
-
-	get: (key) ->
-		@records[key]
-
-	set: (key, rec) ->
-		@setRecord(key, rec)
-
-	isValid: ->
-		valid = true
-		
-		for k, r of @records
-			if r.isValid(@, k) is false then valid = false
-
-		valid
-
-	dump: ->
-		for k, r of @records
-			r.dump()
-
 
 class exports.element extends utils.extendEvents
 	htmlType:		undefined			# HTML element type
@@ -656,7 +625,7 @@ class exports.form extends exports.element
 			@addField(newField)
 	
 	bindRequest: (req) ->
-		recordSet = new exports.recordSet()
+		recordSet = new dba.recordSet()
 
 		recordKey = @getProperty('formName')
 		recordSet.setRecord recordKey, @bindRecord ? @model.createRecord()

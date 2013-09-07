@@ -57,7 +57,6 @@ class exports.dbError
 	throwError: () ->
 		throw @error()
 
-
 ###
 # Cache object for storing table data
 ###
@@ -317,12 +316,14 @@ class exports.record
 	modified:			undefined
 	table:				undefined
 	columnValidator:	undefined
+	linkedRecords:		undefined
 
 	constructor: (setTable) ->
 		@columns = {}
 		@data = {}
 		@modified = {}
 		@columnValidator = {}
+		@linkedRecords = {}
 
 		if setTable?
 			@setTable(setTable)
@@ -360,6 +361,44 @@ class exports.record
 
 		@
 
+	setLinkedRecord: (col, rec) ->
+		unless @getColumn(col) instanceof exports.link then throw "Column #{col} is not a linked column."
+		@linkedRecords[col] = rec
+		@
+
+	getLinkedRecord: (col, dbh, options, callback) ->
+		column = @getColumn(col)
+		unless column instanceof exports.link then throw "Column #{col} is not a linked column."
+
+		if arguments.length is 3 
+			callback = options
+			options = {}
+
+		# If we're called synchronously then we just return whatever's been cached
+		unless callback?
+			return @linkedRecords[col]
+
+		# Asynchronous call
+		# If we have a record cached then shortcut outta here
+		if @linkedRecords[col]? and not options.link? and options.ignoreCache isnt true
+			callback undefined, @linkedRecords[col]
+			return @linkedRecords[col]
+
+		# Nothing cached so let's go fetch it from the database
+		selectOpts = { filter: {} }
+		selectOpts.filter[column.getLinkColumn()] = @get(col)
+
+		column.getLinkTable().newSelect dbh, selectOpts, (err, res) =>
+			if err? then return callback err, undefined
+
+			if column.getLinkType() is 'one to one'
+				unless options.skipSave is true
+					@linkedRecords[col] = res[0]
+
+				callback undefined, res[0]
+			else
+				callback undefined, res
+
 	getTable: ->
 		@table
 
@@ -374,6 +413,13 @@ class exports.record
 				subField = @get(f)
 				if subField? then subField.dump(indent+'    ')
 				else console.log indent+'    <null>'
+			if @columns[f].getType() is 'link'
+				console.log "#{indent}  #{f} of type link with key: #{@get(f)}"
+				if @linkedRecords[f]?
+					console.log "#{indent}    Linked record is cached:"
+					@linkedRecords[f].dump(indent+'       ')
+				else
+					console.log "#{indent}    Linked record is not cached or is null."
 			else
 				console.log "#{indent}  #{f} of type #{@columns[f].getType()} = #{@data[f]}#{mod}"
 
@@ -496,6 +542,44 @@ class exports.record
 		for col in @columns
 			obj[col] = @serialise(col)
 		obj
+
+###
+# A collection of records
+###
+
+class exports.recordSet
+	records:		undefined
+
+	constructor: ->
+		@records = {}
+
+	setRecord: (key, rec) ->
+		@records[key] = rec
+		@
+
+	recordNames: ->
+		(n for n of @records)
+
+	get: (key) ->
+		@records[key]
+
+	set: (key, rec) ->
+		@setRecord(key, rec)
+
+	isValid: ->
+		valid = true
+		
+		for k, r of @records
+			if r.isValid(@, k) is false then valid = false
+
+		valid
+
+	dump: ->
+		for k, r of @records
+			r.dump()
+
+
+
 
 
 class exports.table
@@ -624,6 +708,9 @@ class exports.table
 			else
 				selectColumns.push @columns[c].getDbFieldName()
 		return selectColumns
+
+	@getSelectColumns: ->
+		(c for c of @columns when @columns[c].include('select'))
 
 	@select: (dbh, options, callback) ->
 		@initialise()
@@ -856,6 +943,233 @@ class exports.table
 				callback undefined, record
 		@
 
+	@newSelect: (dbh, options = {}, callback) ->
+		@initialise()
+
+		@preselectEvent dbh, =>
+			unless callback? then return
+
+			sb = new selectBuilder
+			tableAlias = sb.baseTable(@, options.selectColumns ? @getSelectColumns())
+			
+			for k of options.filter ? {}
+				if options.filter[k] is null
+					sb.addFilter(tableAlias, @columns[k].getDbFieldName(), 'IS NULL', undefined)
+				else
+					sb.addFilter(tableAlias, @columns[k].getDbFieldName(), '=', options.filter[k])
+
+			if options.link?
+				bMap = linkTables sb, @, tableAlias, options.link
+				sb.setBindMap bMap
+
+			if options.where?
+				sb.addWhereSql options.where
+
+			for f of options.sort ? {}
+				mapped = sb.mapColumn(f)
+				unless mapped? then throw "Unknown sort column #{f}"
+				throw "Invalid sort details #{options.sort[f]}" unless options.sort[f].match /^\s*(asc|desc)(\s+nulls\s+(first|last))?\s*$/i
+				sb.addOrderSQL mapped + ' ' + options.sort[f]
+
+			if options.limit? then sb.setLimit(options.limit)
+			if options.offset? then sb.setOffset(options.offset)
+
+			if options.pager? and utils.objType(options.pager) is 'object'
+				console.log "Pager isn't supported yet, bitches."
+				console.log sb.sql({countAll: true})
+			else
+				dbh.query sb.sql(), sb.bindValues(), (err, res) =>
+					if err? then return callback(err)
+
+					r = (sb.bindResult(row) for row in res.rows)
+					callback undefined, r
+
+linkTables = (sb, table, tableAlias, link, path = '', bMap = {}) ->
+	switch utils.objType(link)
+		when 'string'
+			newLink = {}
+			newLink[link] = {}
+			link = newLink
+		when 'array'
+			oldLink = link
+			link = {}
+			for l in oldLink
+				link[l] = {}
+
+	if path.length > 0 then path += '.'
+
+	for linkField, options of link
+		options = {} if options is true
+		col = table.getColumn linkField
+		unless col? and col instanceof exports.link then throw "Column #{linkField} is not a linked field."
+		unless col.getLinkType() is 'one to one' then throw "Only one to one links are supported; column #{linkField}"
+
+		joinedAlias = sb.addTable 'LEFT JOIN', col.getLinkTable(), tableAlias, col.getDbFieldName(), col.getLinkColumn(), path + linkField, link.columns
+
+		bMap[linkField] ?= {}
+		bMap[linkField].map = joinedAlias
+
+		for k of options.filter ? {}
+			if options.filter[k] is null
+				sb.addFilter(joinedAlias, col.getLinkTable().getColumn(k).getDbFieldName(), 'IS NULL', undefined)
+			else
+				sb.addFilter(joinedAlias, col.getLinkTable().getColumn(k).getDbFieldName(), '=', options.filter[k])
+
+		if options.link?
+			bMap[linkField] ?= {}
+			bMap[linkField].link = linkTables sb, col.getLinkTable(), joinedAlias, options.link, (if path.length > 0 then path + linkField else linkField)
+
+	bMap
+
+
+class selectBuilder
+	tableIndex:			undefined
+	tableList:			undefined
+	columnIndex:		undefined
+	columnLookup:		undefined
+	tableMap:			undefined
+	bindVars:			undefined
+	filterCondition:	undefined
+	orderBy:			undefined
+	limit:				undefined
+	offset:				undefined
+	whereSql:			undefined
+	resultMap:			undefined
+	bindMap:			undefined
+
+	constructor: ->
+		@tableList = []
+		@tableIndex = new utils.idIndex
+		@columnIndex = new utils.idIndex
+		@columnLookup = {}
+		@filterCondition = []
+		@tableMap = {}
+		@bindVars = []
+		@orderBy = []
+		@resultMap = {}
+		@bindMap = {}
+
+	setBindMap: (m) ->
+		@bindMap = m
+		@
+
+	baseTable: (table, cols) ->
+		@tableList = []
+		@addTable 'FROM', table, '', '', '', '', cols
+
+	mapColumn: (col) ->
+		@columnLookup[col]?.db
+
+	addTable: (joinType, joinTable, baseTableAlias, baseField, linkedField, linkPath = '', cols) ->
+		# Save the table, working out what to alias it to
+		tableAlias = @tableIndex.saveUniqueId joinTable.tableName(), joinTable
+		@tableList.push {
+			type:				joinType
+			table:				joinTable
+			alias:				tableAlias
+			fromField:			baseTableAlias + '.' + baseField
+			toField:			tableAlias + '.' + joinTable?.getColumn(linkedField)?.getDbFieldName()
+		}
+
+		@resultMap[tableAlias] = {table: joinTable, columns: {}}
+
+		# Map the columns to unique ids
+		for col in cols ? joinTable.getSelectColumns()
+			colName = joinTable.getColumn(col).getDbFieldName()
+			colAlias = @columnIndex.saveUniqueId tableAlias+'_'+colName, {table: tableAlias, field: colName, as: col}
+			@columnLookup[(if linkPath?.length > 0 then linkPath+'.'+col else col)] = {
+				alias: 	colAlias
+				table: 	tableAlias
+				field:	colName
+				db:		tableAlias + '.' + colName
+			}
+
+			@resultMap[tableAlias].columns[colAlias] = col
+
+		tableAlias
+
+	bindValue: (val) ->
+		@bindVars.push(val)
+		"$#{@bindVars.length}"
+
+	addWhereSql: (sql) ->
+		@whereSql = sql
+		@
+
+	addFilterSql: (sql) ->
+		@filterCondition.push sql
+		@
+
+	addFilter: (tableAlias, fieldName, operator, value) ->
+		f = tableAlias + '.' + fieldName
+		op = operator
+		v = if value? then @bindValue(value) else ''
+		@filterCondition.push "#{f} #{op} #{v}"
+		@
+	
+	addOrderSQL: (clause) ->
+		@orderBy.push clause
+		@
+
+	addSort: (field, order = 'DESC') ->
+		@orderBy.push @mapColumn(field) + ' ' + order
+
+	setLimit: (val) ->
+		@limit = val
+		@
+
+	setOffset: (val) ->
+		@offset = val
+		@
+
+	bindValues: ->
+		@bindVars
+
+	sql: (options = {}) ->
+		if options.countAll is true
+			columns = ['count(*)']
+		else
+			columns = (def.table+'.'+def.field+' AS '+col for col, def of @columnIndex.allItems())
+
+		# Iterate through tables to build up the sql
+		from = ''
+		for t in @tableList
+			tableName = t.table.tableName()
+			from += ' ' + t.type + ' ' + tableName
+			if tableName isnt t.alias then from += ' AS ' + t.alias
+			if t.type isnt 'FROM'
+				from += ' ON ' + t.fromField + ' = ' + t.toField
+
+		clause = @filterCondition.join(' AND ')
+		if @whereSql?
+			if clause? then clause = @whereSql + ' AND (' + clause + ')'
+			else clause = @whereSql
+		if clause? then clause = ' WHERE ' + clause
+
+		order = if @orderBy.length > 0 then ' ORDER BY ' + @orderBy.join(', ') else ''
+		limit = if @limit? and options.countAll isnt true then ' LIMIT ' + @limit else ''
+		offset = if @offset? and options.countAll isnt true then ' OFFSET ' + @offset else ''
+
+		return 'SELECT ' + columns.join(', ') + from + clause + order + limit + offset
+
+	bindResult: (row) ->
+		return undefined unless @tableList.length > 0
+
+		firstTable = @tableList[0]
+		res = @_doBindResult row, firstTable.alias, @bindMap
+		res
+
+	_doBindResult: (row, tableAlias, bindMap) ->
+		rec = @resultMap[tableAlias].table.createRecord()
+
+		for resCol, recCol of @resultMap[tableAlias].columns
+			rec.deserialise recCol, row[resCol]
+
+		for field, op of bindMap when op['map']?
+			subRec = @_doBindResult row, op['map'], op.link ? {}
+			rec.setLinkedRecord field, subRec
+
+		rec
 
 
 buildPrimaryKeys = (pks, pkDef) ->
@@ -1104,7 +1418,6 @@ class exports.link extends exports.column
 	dbType:				'integer'
 	linkTable:			undefined
 	linkColumn:			undefined
-	recordCache:		undefined
 	linkType:			'one to one'
 	filter:				undefined
 
@@ -1126,9 +1439,15 @@ class exports.link extends exports.column
 		@linkTable = table
 		@
 
+	getLinkTable: ->
+		@linkTable
+
 	setLinkColumn: (col) ->
 		@linkColumn = col
 		@
+
+	getLinkColumn: ->
+		@linkColumn ? (@linkTable.getPrimaryKeys())[0]
 
 	setLinkType: (type) ->
 		if type is 'one' or type is 'one to one' or type is 'single'
@@ -1138,32 +1457,35 @@ class exports.link extends exports.column
 		else throw "Unknown link type #{type}."
 		@
 
+	getLinkType: ->
+		@linkType
+
 	setFilter: (filter) ->
 		@filter = filter
 		@
 
-	getLinkedRecord: (dbh, val, rec, callback) ->
-		callback "No linked table.", undefined unless @linkTable?
+	# getLinkedRecord: (dbh, val, rec, callback) ->
+	# 	callback "No linked table.", undefined unless @linkTable?
 
-		if @linkType is 'one to one'
-			@linkTable.get dbh, val, (err, rec) =>
-				@setCachedRecord(rec) unless err?
-				callback err, rec
-		else
-			options = {filter: {}}
-			if @filter?
-				options.filter = @filter
+	# 	if @linkType is 'one to one'
+	# 		@linkTable.get dbh, val, (err, rec) =>
+	# 			@setCachedRecord(rec) unless err?
+	# 			callback err, rec
+	# 	else
+	# 		options = {filter: {}}
+	# 		if @filter?
+	# 			options.filter = @filter
 
-			options.filter.
+	# 		# options.filter.
 
-			callback undefined
+	# 		callback undefined
 
-	setCachedRecord: (obj) ->
-		@recordCache = obj
-		@
+	# setCachedRecord: (obj) ->
+	# 	@recordCache = obj
+	# 	@
 
-	getCachedRecord: ->
-		@recordCache
+	# getCachedRecord: ->
+	# 	@recordCache
 
 
 class exports.map extends exports.column
