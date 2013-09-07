@@ -141,5 +141,10 @@ class exports.idIndex
 	makeUniqueId: (prefix = '') ->
 		if @idExists(prefix) then @genUniqueId(prefix, 1) else prefix
 
+	saveUniqueId: (id, obj, oldId) ->
+		uid = @makeUniqueId(id)
+		@saveObj uid, obj, oldId
+		uid
+
 	allItems: ->
 		@index

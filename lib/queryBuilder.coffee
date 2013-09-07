@@ -42,7 +42,7 @@ class exports.query
 
 	join: (type, table, onClause, options) ->
 		unless table instanceof exports.table
-			table = new exports.table(@,  dtable)
+			table = new exports.table(@, table)
 
 	innerJoin: (table, onClause, options) ->
 		@join 'INNER JOIN', table, onClause
