@@ -361,6 +361,11 @@ class exports.record
 
 		@
 
+	clearLinkedRecord: (col) ->
+		unless @getColumn(col) instanceof exports.link then throw "Column #{col} is not a linked column."
+		delete @linkedRecords[col]
+		@
+
 	setLinkedRecord: (col, rec) ->
 		unless @getColumn(col) instanceof exports.link then throw "Column #{col} is not a linked column."
 		@linkedRecords[col] = rec
@@ -1433,7 +1438,11 @@ class exports.link extends exports.column
 		@setLinkColumn linkColumn if linkColumn
 
 		@onCall 'pre_set_value', (ev, val, record) ->
-			@recordCache = undefined
+			if val instanceof exports.record
+				record.setLinkedRecord(@name, record)
+				val = record.get(@linkColumn)
+			else
+				record.clearLinkedRecord(@name)
 			val
 
 	setLinkTable: (table) ->
