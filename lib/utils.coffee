@@ -48,6 +48,9 @@ exports.toBool = (val) ->
 	if val then return true
 	return false
 
+exports.toInt = (val) ->
+	parseInt(val)
+
 exports.escapeHTML = (str) ->
 	String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 

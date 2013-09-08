@@ -981,8 +981,44 @@ class exports.table
 			if options.offset? then sb.setOffset(options.offset)
 
 			if options.pager? and utils.objType(options.pager) is 'object'
-				console.log "Pager isn't supported yet, bitches."
 				console.log sb.sql({countAll: true})
+
+				options.pager.perPage ?= 10
+				options.pager.page ?= 1
+
+				dbh.query sb.sql({countAll: true}), sb.bindValues(), (err, pRes) =>
+					if err? then throw "Pager count error: #{err}"
+					pagerInfo = {
+						totalRows:		parseInt(pRes.rows[0].count)
+						totalPages:		if pRes.rows[0].count==0 then 1 else Math.ceil(pRes.rows[0].count / options.pager.perPage)
+						page:			options.pager.page
+						perPage:		options.pager.perPage
+						rows:			[]
+					}
+					if options.pager.page < 0 then pagerInfo.page = pagerInfo.totalPages - options.pager.page
+					if pagerInfo.page < 1 or pagerInfo.page > pRes.totalPages
+						errObj = new exports.dbError("Invalid page '#{pagerInfo.page}' selected", sql, (options.bind ? []), "Database error when selecting record from table #{@dbTable}")
+						return callback(errObj, pagerInfo)
+
+					pagerInfo.nextPage = if pagerInfo.page < pagerInfo.totalPages then parseInt(pagerInfo.page,10)+1 else undefined
+					pagerInfo.prevPage = if pagerInfo.page > 1 then parseInt(pagerInfo.page,10)-1 else undefined
+					pagerInfo.pageRows = {
+						from:		(pagerInfo.page - 1) * pagerInfo.perPage + 1
+						to:			(pagerInfo.page) * pagerInfo.perPage
+					}
+					if pagerInfo.pageRows.to > pagerInfo.totalRows then pagerInfo.pageRows.to = pagerInfo.totalRows
+
+					pagerInfo.offset = pagerInfo.perPage * (pagerInfo.page - 1)
+					pagerInfo.limit = pagerInfo.perPage
+
+					sb.setLimit(pagerInfo.perPage)
+					sb.setOffset(pagerInfo.perPage * (pagerInfo.page - 1))
+
+					dbh.query sb.sql(), sb.bindValues(), (err, res) =>
+						if err? then return callback(err)
+
+						pagerInfo.rows = (sb.bindResult(row) for row in res.rows)
+						callback undefined, pagerInfo
 			else
 				dbh.query sb.sql(), sb.bindValues(), (err, res) =>
 					if err? then return callback(err)
@@ -1152,7 +1188,7 @@ class selectBuilder
 			else clause = @whereSql
 		if clause? then clause = ' WHERE ' + clause
 
-		order = if @orderBy.length > 0 then ' ORDER BY ' + @orderBy.join(', ') else ''
+		order = if @orderBy.length > 0 and options.countAll isnt true then ' ORDER BY ' + @orderBy.join(', ') else ''
 		limit = if @limit? and options.countAll isnt true then ' LIMIT ' + @limit else ''
 		offset = if @offset? and options.countAll isnt true then ' OFFSET ' + @offset else ''
 

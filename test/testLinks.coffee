@@ -69,21 +69,24 @@ dba.connect "pg://dbatest:dbatest88@localhost/dbatest", (err, dbh) ->
 	selectOptions = {
 		filter:
 			username: 'geoff'
-		# link:
-		# 	'primaryAddress': { link: 'userId'} # { filter: {id: 1}}
-		# sort:
-		# 	'primaryAddress.id': 'ASC'
+		pager:
+			perPage: 20
+		link:
+			'primaryAddress': { link: 'userId'} # { filter: {id: 1}}
+		sort:
+			'primaryAddress.id': 'ASC'
 	}
 	User.newSelect dbh, selectOptions, (err, res) =>
 		if err? then throw "Select error: #{err}"
 		
 		console.log ">>> RESULTS <<<"
-		for r in res
-			r.dump()
+		console.log res
+		# for r in res
+		# 	r.dump()
 
-		myUser = res[0]
-		add = myUser.getLinkedRecord 'primaryAddress', dbh, (err, add) =>
-			add.dump()
+		# myUser = res[0]
+		# add = myUser.getLinkedRecord 'primaryAddress', dbh, (err, add) =>
+		# 	add.dump()
 
-			dbh.disconnect()
-			process.exit()
+			# dbh.disconnect()
+			# process.exit()
