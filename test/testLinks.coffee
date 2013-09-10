@@ -76,17 +76,19 @@ dba.connect "pg://dbatest:dbatest88@localhost/dbatest", (err, dbh) ->
 		sort:
 			'primaryAddress.id': 'ASC'
 	}
-	User.newSelect dbh, selectOptions, (err, res) =>
+	User.select dbh, selectOptions, (err, res) =>
 		if err? then throw "Select error: #{err}"
 		
 		console.log ">>> RESULTS <<<"
 		console.log res
-		# for r in res
-		# 	r.dump()
+		for r in res.rows
+			r.dump()
 
-		# myUser = res[0]
-		# add = myUser.getLinkedRecord 'primaryAddress', dbh, (err, add) =>
-		# 	add.dump()
+		myUser = res[0]
 
-			# dbh.disconnect()
-			# process.exit()
+		# address = myUser.getLinkedRecord 'primaryAddress'
+		add = myUser.getLinkedRecord 'primaryAddress', dbh, (err, add) =>
+			add.dump()
+
+			dbh.disconnect()
+			process.exit()

@@ -393,7 +393,7 @@ class exports.record
 		selectOpts = { filter: {} }
 		selectOpts.filter[column.getLinkColumn()] = @get(col)
 
-		column.getLinkTable().newSelect dbh, selectOpts, (err, res) =>
+		column.getLinkTable().select dbh, selectOpts, (err, res) =>
 			if err? then return callback err, undefined
 
 			if column.getLinkType() is 'one to one'
@@ -718,7 +718,7 @@ class exports.table
 	@getSelectColumns: ->
 		(c for c of @columns when @columns[c].include('select'))
 
-	@select: (dbh, options, callback) ->
+	@oldSelect: (dbh, options, callback) ->
 		@initialise()
 
 		selectColumns = @getSelectFields()
@@ -949,7 +949,7 @@ class exports.table
 				callback undefined, record
 		@
 
-	@newSelect: (dbh, options = {}, callback) ->
+	@select: (dbh, options = {}, callback) ->
 		@initialise()
 
 		@preselectEvent dbh, =>
