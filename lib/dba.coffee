@@ -981,8 +981,6 @@ class exports.table
 			if options.offset? then sb.setOffset(options.offset)
 
 			if options.pager? and utils.objType(options.pager) is 'object'
-				console.log sb.sql({countAll: true})
-
 				options.pager.perPage ?= 10
 				options.pager.page ?= 1
 
@@ -1184,9 +1182,9 @@ class selectBuilder
 
 		clause = @filterCondition.join(' AND ')
 		if @whereSql?
-			if clause? then clause = @whereSql + ' AND (' + clause + ')'
+			if clause.length > 0 then clause = @whereSql + ' AND (' + clause + ')'
 			else clause = @whereSql
-		if clause? then clause = ' WHERE ' + clause
+		if clause.length > 0 then clause = ' WHERE ' + clause
 
 		order = if @orderBy.length > 0 and options.countAll isnt true then ' ORDER BY ' + @orderBy.join(', ') else ''
 		limit = if @limit? and options.countAll isnt true then ' LIMIT ' + @limit else ''
