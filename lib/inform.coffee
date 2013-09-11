@@ -362,6 +362,9 @@ class exports.element extends utils.extendEvents
 			else
 				data = utils.extractFormField(req, f.getAttribute('name'))
 
+				if f.getProperty('skipIfNull') is true
+					continue unless data? and data isnt ''
+
 				# Check if we're valid
 				f.getValidator().reset()
 				if f.getValidator().validate(data, req, @, f) is false then valid = false else valid = true
