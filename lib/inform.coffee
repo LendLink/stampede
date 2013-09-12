@@ -606,6 +606,9 @@ class exports.form extends exports.element
 				for r in opts.validate
 					newField.addRule(r)
 
+			if opts.skipIfNull? and opts.skipIfNull is true
+				newField.setProperty('skipIfNull', true)
+
 			for r in addValidatorRules
 				newField.addRule(r)
 
