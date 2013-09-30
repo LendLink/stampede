@@ -373,11 +373,22 @@ class exports.element extends utils.extendEvents
 				if f.getProperty('dbColumn')? and valid is true
 					if f.getProperty('specialBind') is 'moment'
 						data = moment(data, f.getProperty('format') ? 'DD/MM/YYYY')
+						
+					# Special case for boolean checkboxes
+					if f instanceof exports.multichoice and f.displayAs is 'checkbox'
+						if data?
+							data = true
+							f.setValue f.getProperty('fieldName')
+						else
+							data = false
+							f.deselect f.getProperty('fieldName')
+					else
+						# For everything else we just bind to the raw value
+						f.setValue(data)
 
 					# console.log "Map property #{f.getProperty('dbColumn')} to data #{data}."
 					recordSet.get(recordKey).set(f.getProperty('dbColumn'), data) if data?
 					recordSet.get(recordKey).setValidator f.getProperty('dbColumn'), f.getValidator()
-					f.setValue(data)
 				else
 					# We're a virtual column, need to be created in the record
 					newCol = new dba.virtual()
