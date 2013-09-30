@@ -572,7 +572,7 @@ class exports.form extends exports.element
 
 				when 'checkbox'
 					newField = new exports.multichoice(name).setCheckbox()
-					newField.setOptions([{id: name, label: opts.label ? column?.getLabel()}])
+					newField.setOptions([{id: name, label: opts.label ? column?.getLabel(), value: name}])
 					if boundData? and boundData is true then newField.setSelected(name)
 
 				when 'choice'
