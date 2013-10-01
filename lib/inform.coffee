@@ -550,10 +550,10 @@ class exports.form extends exports.element
 		fmt = undefined
 		addValidatorRules = []
 
-		if boundData? and moment.isMoment(boundData)
+		if column? and column.getType() is 'date'
 			fmt = opts.dateFormat ? options.dateFormat ? 'DD/MM/YYYY'
 			specialBind = 'moment'
-			boundData = boundData.format fmt
+			if moment.isMoment(boundData) then boundData = boundData.format fmt
 
 		newField = undefined
 		showLabel = false
