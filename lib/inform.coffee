@@ -362,10 +362,6 @@ class exports.element extends utils.extendEvents
 			else
 				data = utils.extractFormField(req, f.getAttribute('name'))
 
-				if f.getAttribute('name') == 'campaign[date_to]'
-					console.log(moment.isMoment(data))
-
-
 				if f.getProperty('skipIfNull') is true
 					continue unless data? and data isnt ''
 
