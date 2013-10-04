@@ -360,7 +360,7 @@ class exports.element extends utils.extendEvents
 				recordSet.set subRecordKey, f.bindRecord ? f.model.createRecord()
 				f.bindChildRequest(req, recordSet, subRecordKey)
 			else
-				data = utils.extractFormField(req, f.getAttribute('name'))
+				origData = data = utils.extractFormField(req, f.getAttribute('name'))
 
 				if f.getProperty('skipIfNull') is true
 					continue unless data? and data isnt ''
@@ -371,9 +371,12 @@ class exports.element extends utils.extendEvents
 
 				# We're a normal element, are we mapped to a DB column?
 				if f.getProperty('dbColumn')? and valid is true
+
+					# Special case for date and timestamp fields
 					if f.getProperty('specialBind') is 'moment'
-						data = moment(data, f.getProperty('format') ? 'DD/MM/YYYY')
-						
+						if data? and data isnt '' then data = moment(data, f.getProperty('format') ? 'DD/MM/YYYY')
+						else data = undefined
+
 					# Special case for boolean checkboxes
 					if f instanceof exports.multichoice and f.displayAs is 'checkbox'
 						if data?
@@ -387,7 +390,7 @@ class exports.element extends utils.extendEvents
 						f.setValue(data)
 
 					# console.log "Map property #{f.getProperty('dbColumn')} to data #{data}."
-					recordSet.get(recordKey).set(f.getProperty('dbColumn'), data) if data?
+					recordSet.get(recordKey).set(f.getProperty('dbColumn'), data) if origData?
 					recordSet.get(recordKey).setValidator f.getProperty('dbColumn'), f.getValidator()
 				else
 					# We're a virtual column, need to be created in the record
@@ -552,6 +555,10 @@ class exports.form extends exports.element
 
 		if column? and column.getType() is 'date'
 			fmt = opts.dateFormat ? options.dateFormat ? 'DD/MM/YYYY'
+			specialBind = 'moment'
+			if moment.isMoment(boundData) then boundData = boundData.format fmt
+		else if column? and column.getType() is 'time'
+			fmt = opts.timeFormat ? options.timeFormat ? 'HH:mm'
 			specialBind = 'moment'
 			if moment.isMoment(boundData) then boundData = boundData.format fmt
 
