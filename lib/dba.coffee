@@ -1357,7 +1357,8 @@ class exports.date extends exports.column
 			return undefined
 
 		@onCall 'set_value', (ev, val) ->
-			if val?
+			console.log "Setting date field to be #{val}"
+			if val? and val isnt ''
 				if /^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(val) then return new moment(val, "DD/MM/YYYY")
 				return new moment(val)
 			undefined

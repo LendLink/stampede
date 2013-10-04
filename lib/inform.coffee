@@ -360,7 +360,11 @@ class exports.element extends utils.extendEvents
 				recordSet.set subRecordKey, f.bindRecord ? f.model.createRecord()
 				f.bindChildRequest(req, recordSet, subRecordKey)
 			else
-				data = utils.extractFormField(req, f.getAttribute('name'))
+				origData = data = utils.extractFormField(req, f.getAttribute('name'))
+
+				if f.getAttribute('name') is 'campaign[date_to]'
+					console.log "Field #{f.getAttribute('name')} = #{data}"
+					f.dump()
 
 				if f.getProperty('skipIfNull') is true
 					continue unless data? and data isnt ''
@@ -371,9 +375,12 @@ class exports.element extends utils.extendEvents
 
 				# We're a normal element, are we mapped to a DB column?
 				if f.getProperty('dbColumn')? and valid is true
+
+					# Special case for date and timestamp fields
 					if f.getProperty('specialBind') is 'moment'
-						data = moment(data, f.getProperty('format') ? 'DD/MM/YYYY')
-						
+						if data? and data isnt '' then data = moment(data, f.getProperty('format') ? 'DD/MM/YYYY')
+						else data = undefined
+
 					# Special case for boolean checkboxes
 					if f instanceof exports.multichoice and f.displayAs is 'checkbox'
 						if data?
@@ -387,7 +394,7 @@ class exports.element extends utils.extendEvents
 						f.setValue(data)
 
 					# console.log "Map property #{f.getProperty('dbColumn')} to data #{data}."
-					recordSet.get(recordKey).set(f.getProperty('dbColumn'), data) if data?
+					recordSet.get(recordKey).set(f.getProperty('dbColumn'), data) if origData?
 					recordSet.get(recordKey).setValidator f.getProperty('dbColumn'), f.getValidator()
 				else
 					# We're a virtual column, need to be created in the record
