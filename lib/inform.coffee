@@ -362,10 +362,6 @@ class exports.element extends utils.extendEvents
 			else
 				origData = data = utils.extractFormField(req, f.getAttribute('name'))
 
-				if f.getAttribute('name') is 'campaign[date_to]'
-					console.log "Field #{f.getAttribute('name')} = #{data}"
-					f.dump()
-
 				if f.getProperty('skipIfNull') is true
 					continue unless data? and data isnt ''
 
