@@ -557,6 +557,10 @@ class exports.form extends exports.element
 			fmt = opts.dateFormat ? options.dateFormat ? 'DD/MM/YYYY'
 			specialBind = 'moment'
 			if moment.isMoment(boundData) then boundData = boundData.format fmt
+		else if column? and column.getType() is 'time'
+			fmt = opts.timeFormat ? options.timeFormat ? 'HH:mm'
+			specialBind = 'moment'
+			if moment.isMoment(boundData) then boundData = boundData.format fmt
 
 		newField = undefined
 		showLabel = false

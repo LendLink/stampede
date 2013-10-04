@@ -1377,6 +1377,38 @@ class exports.date extends exports.column
 		@
 
 
+class exports.time extends exports.column
+	type: 				'time'
+	doDefaultNow: 		false
+
+	constructor: ->
+		super
+
+		@onCall 'pre_get_value', (ev, val) ->
+			if val? then return new moment(val)
+			if @doDefaultNow then return new moment()
+			return undefined
+
+		@onCall 'set_value', (ev, val) ->
+			if val? and val isnt ''
+				if /^\d{2}:\d{2}:\d{2}$/i.test(val) then return new moment(val, "HH:mm:ss")
+				return new moment(val)
+			undefined
+
+		@onCall 'serialise', (ev, val) ->
+			if val? and moment.isMoment(val)
+				return val.format 'HH:mm:ss'
+			undefined
+
+		@onCall 'deserialise', (ev, val) ->
+			if val? then return new moment(val)
+			undefined
+
+	defaultNow: ->
+		@doDefaultNow = true
+		@defaultValue = 'now'
+		@
+
 
 class exports.timestamp extends exports.column
 	type: 				'timestamp with time zone'
