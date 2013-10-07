@@ -957,6 +957,10 @@ class exports.table
 
 			sb = new selectBuilder
 			tableAlias = sb.baseTable(@, options.selectColumns ? @getSelectColumns())
+
+			if options.bind?
+				for val in options.bind
+					sb.bindvalue(val)
 			
 			for k of options.filter ? {}
 				if options.filter[k] is null

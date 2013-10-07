@@ -5,6 +5,7 @@ Event types:
 	on / once / emit 		- the same as standard event emitters, called asynchronously in parallel
 	onFilter / emitFilter	- run in series, each returning a value to the next through to a final callback
 	onRequest / emitRequest	- run in parallel, each returning a value to a final callback
+	onCall / emitCall		- run as a plugin to behaviour replacing a default function, returns content
 	emitRequests			- emit multiple requests in parallel to each other, collating into a final callback
 ###
 
@@ -19,6 +20,7 @@ class exports.eventEmitter
 	constructor: ->
 		@onListeners = {}
 		@onceListeners = {}
+		@callListeners = {}
 		@filterListeners = {}
 		@requestListeners = {}
 
@@ -75,6 +77,25 @@ class exports.eventEmitter
 
 	getFilters: (event) ->
 		@filterListeners[event] ? []
+
+	
+
+
+	#########################
+	# Calls
+
+	onCall: (event, call) ->
+		@callListeners[event] = call
+		@
+
+	removeCall: (event) ->
+		delete @filterListeners[event]
+		@
+
+	getCall: (event) ->
+		@callListeners[event]
+
+
 
 	#########################
 	# Requests
