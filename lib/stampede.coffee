@@ -9,6 +9,6 @@ exports.queryBuilder = require './queryBuilder'
 exports.qb = exports.queryBuilder
 exports.validator = require './validator'
 exports.events = require './events'
-exports.app = require './app'
+# exports.app = require './app'
 
 exports.eventEmitter = exports.events.eventEmitter

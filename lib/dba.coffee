@@ -960,7 +960,7 @@ class exports.table
 
 			if options.bind?
 				for val in options.bind
-					sb.bindvalue(val)
+					sb.bindValue(val)
 			
 			for k of options.filter ? {}
 				if options.filter[k] is null
