@@ -1278,16 +1278,51 @@ class exports.integer extends exports.column
 		@minValue = limitMin
 
 		@addValidationRule (val) ->
+			if val isnt Math.floor(val) then return "#{val} is not an integer"
+			true
+			
+		@addValidationRule (val) ->
 			if @maxValue? and val > @maxValue then return "#{val} exceeds maximum value of #{@maxValue}"
 			true
 
 		@addValidationRule (val) ->
-			if @minValue? and val < @minValue then return "#{val} is less than minimum value of #{@minValue}"
+			if @minValue? and val < @minValue then return "#{val} is less than the minimum value of #{@minValue}"
 			true
 
 		@onCall 'pre_get_value', (ev, val) ->
 			if val? then return Number(val)
 			val
+
+
+class exports.float extends exports.column
+	type: 				'float'
+
+	# Type specific validation
+	minValue:			undefined
+	maxValue:			undefined
+
+	constructor: (limitMax, limitMin) ->
+		super
+		if limitMax? and limitMin? and limitMax < limitMin then [limitMax, limitMin] = [limitMin, limitMax]
+		@maxValue = limitMax
+		@minValue = limitMin
+
+		@addValidationRule (val) ->
+			if @maxValue? and val > @maxValue then return "#{val} exceeds maximum value of #{@maxValue}"
+			true
+
+		@addValidationRule (val) ->
+			if @minValue? and val < @minValue then return "#{val} is less than the minimum value of #{@minValue}"
+			true
+
+		@onCall 'pre_get_value', (ev, val) ->
+			if val? then return Number(val)
+			val
+
+
+class exports.numeric extends exports.float
+	type: 				'numeric'
+
 
 
 
