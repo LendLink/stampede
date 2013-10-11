@@ -4,6 +4,7 @@
 # Database abstraction layer for PostgreSQL.
 ###
 
+stampedeTime = require './time'
 inform = require './inform'
 utils = require './utils'
 validator = require './validator'
@@ -1277,9 +1278,9 @@ class exports.integer extends exports.column
 		@maxValue = limitMax
 		@minValue = limitMin
 
-		@addValidationRule (val) ->
-			if val isnt Math.floor(val) then return "#{val} is not an integer"
-			true
+		# @addValidationRule (val) ->
+		# 	if val isnt Math.floor(val) then return "#{val} is not an integer"
+		# 	true
 			
 		@addValidationRule (val) ->
 			if @maxValue? and val > @maxValue then return "#{val} exceeds maximum value of #{@maxValue}"
@@ -1424,22 +1425,22 @@ class exports.time extends exports.column
 		super
 
 		@onCall 'pre_get_value', (ev, val) ->
-			if val? then return new stampede.time(val)
-			if @doDefaultNow then return new stampede.time()
+			if val? then return new stampedeTime(val)
+			if @doDefaultNow then return new stampedeTime()
 			return undefined
 
 		@onCall 'set_value', (ev, val) ->
 			if val? and val isnt ''
-				return new stampede.time(val)
+				return new stampedeTime(val)
 			undefined
 
 		@onCall 'serialise', (ev, val) ->
-			if val? and val instanceof stampede.time
+			if val? and val instanceof stampedeTime
 				return val.toString()
 			undefined
 
 		@onCall 'deserialise', (ev, val) ->
-			if val? then return new stampede.time(val)
+			if val? then return new stampedeTime(val)
 			undefined
 
 	defaultNow: ->
