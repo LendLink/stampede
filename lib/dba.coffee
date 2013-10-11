@@ -1424,23 +1424,22 @@ class exports.time extends exports.column
 		super
 
 		@onCall 'pre_get_value', (ev, val) ->
-			if val? then return new moment(val)
-			if @doDefaultNow then return new moment()
+			if val? then return new stampede.time(val)
+			if @doDefaultNow then return new stampede.time()
 			return undefined
 
 		@onCall 'set_value', (ev, val) ->
 			if val? and val isnt ''
-				if /^\d{2}:\d{2}:\d{2}$/i.test(val) then return new moment(val, "HH:mm:ss")
-				return new moment(val)
+				return new stampede.time(val)
 			undefined
 
 		@onCall 'serialise', (ev, val) ->
-			if val? and moment.isMoment(val)
-				return val.format 'HH:mm:ss'
+			if val? and val instanceof stampede.time
+				return val.toString()
 			undefined
 
 		@onCall 'deserialise', (ev, val) ->
-			if val? then return new moment(val)
+			if val? then return new stampede.time(val)
 			undefined
 
 	defaultNow: ->
