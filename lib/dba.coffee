@@ -1295,7 +1295,7 @@ class exports.integer extends exports.column
                 return Number(val)
             else
                 return null
-                
+
 		@onCall 'pre_get_value', (ev, val) ->
 			if val? then return Number(val)
 			val
@@ -1455,6 +1455,7 @@ class exports.time extends exports.column
 			if val? then return new stampedeTime(val)
 			undefined
 
+                
 	defaultNow: ->
 		@doDefaultNow = true
 		@defaultValue = 'now'

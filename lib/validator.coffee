@@ -258,6 +258,8 @@ class root.rule
 
 	# Time
 	rule_time: (val) ->
+		unless val? and val.length > 0 then return undefined
+
 		v = time.validate(val)
 		if v.valid is false
 			@error v.error
