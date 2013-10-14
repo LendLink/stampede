@@ -1290,6 +1290,12 @@ class exports.integer extends exports.column
 			if @minValue? and val < @minValue then return "#{val} is less than the minimum value of #{@minValue}"
 			true
 
+		@onCall 'pre_set_value', (ev, val) ->
+            if val? and val != ''
+                return Number(val)
+            else
+                return null
+                
 		@onCall 'pre_get_value', (ev, val) ->
 			if val? then return Number(val)
 			val
@@ -1316,6 +1322,12 @@ class exports.float extends exports.column
 			if @minValue? and val < @minValue then return "#{val} is less than the minimum value of #{@minValue}"
 			true
 
+		@onCall 'pre_set_value', (ev, val) ->
+            if val? and val != ''
+                return Number(val)
+            else
+                return null
+                
 		@onCall 'pre_get_value', (ev, val) ->
 			if val? then return Number(val)
 			val
