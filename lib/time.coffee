@@ -11,7 +11,7 @@ class module.exports
 				mins:		t.getMinutes()
 				secs:		t.getSeconds()
 			}
-		else if arguments.length is 1
+		else if arguments.length is 1 or (!mn? and !s?)
 			if hr instanceof module.exports
 				v = {
 					valid:		true
