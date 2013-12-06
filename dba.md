@@ -169,8 +169,7 @@ class UserModel
 				return next undefined, recs
 ```
 
-# Getters and setters
-
+## Getters and setters
 
 ```coffeescript
 UserModel.findOneById 1, (err, user) ->
@@ -180,7 +179,14 @@ UserModel.findOneById 1, (err, user) ->
 	user.set('first_name', 'Joe')
 ```
 
-# Updating your database object
+## Accessing LinkedRecords
+
+To access a linked record, you must define the link in the model (see example further above), and also enable the link in your query (see example just above)
+```coffeescript
+User.getLinkedRecord('type').get('name')
+```
+
+## Updating your database object
 
 ```coffeescript
 # assumes you have a User object
@@ -192,7 +198,7 @@ dba.connect connstring, (err, handle) ->
 		return next undefined, result
 ```
 
-# Converting a JSON object into a dba record object
+## Converting a JSON object into a dba record object
 
 ```coffeescript
 user = {
