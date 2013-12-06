@@ -315,53 +315,60 @@ __Arguments__
 * __step__ - if integer must be an interval, e.g. every 5
 * __errorMessage__ - The message the user will see when this validation rule fails
 
-** numeric **
+numeric
+--------
 This validator ensures that a valid number has been entered for the value of the field.
 
-''Arguments''
-* min
-* max
-* errorMessage - The message the user will see when this validation rule fails
+__Arguments__
+* __min__
+* __max__
+* __errorMessage__ - The message the user will see when this validation rule fails
 
-** email **
+email
+--------
 This validator ensures that a valid email address has been entered for the value of the field.
 
-''Arguments''
-* errorMessage - The message the user will see when this validation rule fails
+__Arguments__
+* __errorMessage__ - The message the user will see when this validation rule fails
 
-** date **
+date
+--------
 This validator ensures that the date entered matches the format defined with dateFormat.
 
-''Arguments''
-* errorMessage - The message the user will see when this validation rule fails
+__Arguments__
+* __errorMessage__ - The message the user will see when this validation rule fails
 
-** time **
+time
+--------
 This validator ensures that the value entered is a time of the format: HH or HH:MM or HH:MM:SS
 
-''Arguments''
-* errorMessage - The message the user will see when this validation rule fails
+__Arguments__
+* __errorMessage__ - The message the user will see when this validation rule fails
 
-** matchField **
+matchField
+--------
 This validator ensures that the value of two fields match. Useful for password confirmation inputs etc.
 
-''Arguments''
-* errorMessage - The message the user will see when this validation rule fails
-* field - The name of the field that this field's value should match.
+__Arguments__
+* __errorMessage__ - The message the user will see when this validation rule fails
+* __field__ - The name of the field that this field's value should match.
 
-** notMatchField **
+notMatchField
+--------
 This validator ensures that the value of two fields do NOT match. Useful for password confirmation inputs etc.
 
-''Arguments''
-* errorMessage - The message the user will see when this validation rule fails
-* field - The name of the field that this field's value should not match.
+__Arguments__
+* __errorMessage__ - The message the user will see when this validation rule fails
+* __field__ - The name of the field that this field's value should not match.
 
-** regex **
+regex
+--------
 This validator ensures that the value entered returns true when the specified regular expression is applied.
 
-''Arguments''
-* errorMessage - The message the user will see when this validation rule fails
-* match - The regular expression as either a string or regular expression object.
-* flags - If match is a string, then this is the regular expression flags to apply when compiling it.
+__Arguments__
+* __errorMessage__ - The message the user will see when this validation rule fails
+* __match__ - The regular expression as either a string or regular expression object.
+* __flags__ - If match is a string, then this is the regular expression flags to apply when compiling it.
 
 
 Help Messages
