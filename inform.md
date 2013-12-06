@@ -3,6 +3,8 @@ inform
 
 inform is a form library that works with stampede/dba to assist in the creation/updating of dba objects.
 
+Let's learn by example:
+
 
 The Form
 --------
@@ -182,8 +184,10 @@ class RegistrationController extends BaseController
 
 ```
 
-Default values
---------------
+Customisations
+----------------
+
+#### Default values
 
 You can set the default values for a model driven form by passing it a model object with the desired values set. For example, in your controller you might do the following to set a default value for the first_name and last_name fields on a user form. 
 
@@ -197,10 +201,15 @@ UserForm.getForm newUser, req, (err, form) ->
 ```
 
 
-Non-Model, "Static" Fields
---------------------------
+#### Non-Model, "Static" Fields
 
 You can add arbitrary static fields to a form which are not part of the bound model object. Just define them in the "fields" object in the "formOptions". This is useful for confirm password fields, Ts&Cs checkboxes etc.
+
+#### Removing fields on the fly
+
+```coffeescript
+form.removeChildField('salutation')
+```
 
 
 Embedded Forms
@@ -220,13 +229,6 @@ getForm: (modelObject, req, next) ->
 		return next undefined, form
 ```
 
-
-Removing fields on the fly
-----------------------------
-
-```coffeescript
-form.removeChildField('salutation')
-```
 
 
 Validation
