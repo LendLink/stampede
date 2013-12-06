@@ -279,37 +279,34 @@ fields:
 		]
 ```
 
-required
---------
+### required
+
 This validator ensures that a string with a length greater than zero has been entered for the value of the field.
 
-<dl>
-	<dt>Arguments</dt>
-	<dd>errorMessage - The message the user will see when this validation rule fails</dd>
-</dl>
+#### Arguments
+* __errorMessage__ - The message the user will see when this validation rule fails
 
-** notNull **
+### notNull
 This validator ensures that a value been entered for the value of the field. This validator will pass when a blank value is entered, if this is not the desired behaviour use the "required" validator.
 
-''Arguments''
+#### Arguments
 * errorMessage - The message the user will see when this validation rule fails
 
-length
-----------
+### length
 This validator ensures that a string is of a certain length.
 
-<dl>
-	<dt>Arguments</dt>
-	<dd>min - The minimum length the string can be</dd>
-	<dd>max - The maximum length the string can be</dd>
-	<dd>minMessage - The message the user will see when the min validation rule fails</dd>
-	<dd>maxMessage - The message the user will see when the max validation rule fails</dd>
-</dl>
+#### Arguments
+* min - The minimum length the string can be
+* max - The maximum length the string can be
+* minMessage - The message the user will see when the min validation rule fails
+* maxMessage - The message the user will see when the max validation rule fails
 
-** integer **
+
+integer
+--------
 This validator ensures that a valid integer has been entered for the value of the field.
 
-''Arguments''
+__Arguments__
 * min
 * max
 * step - if integer must be an interval, e.g. every 5
