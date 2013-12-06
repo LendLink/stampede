@@ -360,7 +360,7 @@ class exports.element extends utils.extendEvents
 				recordSet.set subRecordKey, f.bindRecord ? f.model.createRecord()
 				f.bindChildRequest(req, recordSet, subRecordKey)
 			else
-				data = utils.extractFormField(req, f.getAttribute('name'))
+				origData = data = utils.extractFormField(req, f.getAttribute('name'))
 
 				if f.getProperty('skipIfNull') is true
 					continue unless data? and data isnt ''
@@ -371,13 +371,27 @@ class exports.element extends utils.extendEvents
 
 				# We're a normal element, are we mapped to a DB column?
 				if f.getProperty('dbColumn')? and valid is true
+
+					# Special case for date and timestamp fields
 					if f.getProperty('specialBind') is 'moment'
-						data = moment(data, f.getProperty('format') ? 'DD/MM/YYYY')
+						if data? and data isnt '' then data = moment(data, f.getProperty('format') ? 'DD/MM/YYYY')
+						else data = undefined
+
+					# Special case for boolean checkboxes
+					if f instanceof exports.multichoice and f.displayAs is 'checkbox'
+						if data?
+							data = true
+							f.setValue f.getProperty('fieldName')
+						else
+							data = false
+							f.deselect f.getProperty('fieldName')
+					else
+						# For everything else we just bind to the raw value
+						f.setValue(data)
 
 					# console.log "Map property #{f.getProperty('dbColumn')} to data #{data}."
-					recordSet.get(recordKey).set(f.getProperty('dbColumn'), data) if data?
+					recordSet.get(recordKey).set(f.getProperty('dbColumn'), data) if origData?
 					recordSet.get(recordKey).setValidator f.getProperty('dbColumn'), f.getValidator()
-					f.setValue(data)
 				else
 					# We're a virtual column, need to be created in the record
 					newCol = new dba.virtual()
@@ -539,10 +553,14 @@ class exports.form extends exports.element
 		fmt = undefined
 		addValidatorRules = []
 
-		if boundData? and moment.isMoment(boundData)
+		if column? and column.getType() is 'date'
 			fmt = opts.dateFormat ? options.dateFormat ? 'DD/MM/YYYY'
 			specialBind = 'moment'
-			boundData = boundData.format fmt
+			if moment.isMoment(boundData) then boundData = boundData.format fmt
+		else if column? and column.getType() is 'time'
+			fmt = opts.timeFormat ? options.timeFormat ? 'HH:mm'
+			specialBind = 'time'
+			if moment.isMoment(boundData) then boundData = boundData.format fmt
 
 		newField = undefined
 		showLabel = false
@@ -572,7 +590,7 @@ class exports.form extends exports.element
 
 				when 'checkbox'
 					newField = new exports.multichoice(name).setCheckbox()
-					newField.setOptions([{id: name, label: opts.label ? column?.getLabel()}])
+					newField.setOptions([{id: name, label: opts.label ? column?.getLabel(), value: name}])
 					if boundData? and boundData is true then newField.setSelected(name)
 
 				when 'choice'

@@ -4,6 +4,7 @@
 # Database abstraction layer for PostgreSQL.
 ###
 
+stampedeTime = require './time'
 inform = require './inform'
 utils = require './utils'
 validator = require './validator'
@@ -957,6 +958,10 @@ class exports.table
 
 			sb = new selectBuilder
 			tableAlias = sb.baseTable(@, options.selectColumns ? @getSelectColumns())
+
+			if options.bind?
+				for val in options.bind
+					sb.bindValue(val)
 			
 			for k of options.filter ? {}
 				if options.filter[k] is null
@@ -1273,17 +1278,64 @@ class exports.integer extends exports.column
 		@maxValue = limitMax
 		@minValue = limitMin
 
+		# @addValidationRule (val) ->
+		# 	if val isnt Math.floor(val) then return "#{val} is not an integer"
+		# 	true
+			
 		@addValidationRule (val) ->
 			if @maxValue? and val > @maxValue then return "#{val} exceeds maximum value of #{@maxValue}"
 			true
 
 		@addValidationRule (val) ->
-			if @minValue? and val < @minValue then return "#{val} is less than minimum value of #{@minValue}"
+			if @minValue? and val < @minValue then return "#{val} is less than the minimum value of #{@minValue}"
 			true
+
+		@onCall 'pre_set_value', (ev, val) ->
+            if val? and val != ''
+                return Number(val)
+            else
+                return null
 
 		@onCall 'pre_get_value', (ev, val) ->
 			if val? then return Number(val)
 			val
+
+
+class exports.float extends exports.column
+	type: 				'float'
+
+	# Type specific validation
+	minValue:			undefined
+	maxValue:			undefined
+
+	constructor: (limitMax, limitMin) ->
+		super
+		if limitMax? and limitMin? and limitMax < limitMin then [limitMax, limitMin] = [limitMin, limitMax]
+		@maxValue = limitMax
+		@minValue = limitMin
+
+		@addValidationRule (val) ->
+			if @maxValue? and val > @maxValue then return "#{val} exceeds maximum value of #{@maxValue}"
+			true
+
+		@addValidationRule (val) ->
+			if @minValue? and val < @minValue then return "#{val} is less than the minimum value of #{@minValue}"
+			true
+
+		@onCall 'pre_set_value', (ev, val) ->
+            if val? and val != ''
+                return Number(val)
+            else
+                return null
+                
+		@onCall 'pre_get_value', (ev, val) ->
+			if val? then return Number(val)
+			val
+
+
+class exports.numeric extends exports.float
+	type: 				'numeric'
+
 
 
 
@@ -1357,7 +1409,7 @@ class exports.date extends exports.column
 			return undefined
 
 		@onCall 'set_value', (ev, val) ->
-			if val?
+			if val? and val isnt ''
 				if /^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(val) then return new moment(val, "DD/MM/YYYY")
 				return new moment(val)
 			undefined
@@ -1371,6 +1423,39 @@ class exports.date extends exports.column
 			if val? then return new moment(val)
 			undefined
 
+	defaultNow: ->
+		@doDefaultNow = true
+		@defaultValue = 'now'
+		@
+
+
+class exports.time extends exports.column
+	type: 				'time'
+	doDefaultNow: 		false
+
+	constructor: ->
+		super
+
+		@onCall 'pre_get_value', (ev, val) ->
+			if val? then return new stampedeTime(val)
+			if @doDefaultNow then return new stampedeTime()
+			return undefined
+
+		@onCall 'set_value', (ev, val) ->
+			if val? and val isnt ''
+				return new stampedeTime(val)
+			undefined
+
+		@onCall 'serialise', (ev, val) ->
+			if val? and val instanceof stampedeTime
+				return val.toString()
+			undefined
+
+		@onCall 'deserialise', (ev, val) ->
+			if val? then return new stampedeTime(val)
+			undefined
+
+                
 	defaultNow: ->
 		@doDefaultNow = true
 		@defaultValue = 'now'

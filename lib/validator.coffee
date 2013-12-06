@@ -5,6 +5,7 @@
 utils = require './utils'
 nodeUtil = require 'util'
 moment = require 'moment'
+time = require './time'
 
 
 root = exports ? this
@@ -223,6 +224,9 @@ class root.rule
 	rule_integer: (val) ->
 		unless val? then return undefined
 
+		if isNaN val
+			return @error(@args.nanMessage ? "Value is not a number")
+
 		if @args.min? and val < @args.min
 			return @error(@args.minMessage ? "Minimum value of #{@args.min}")
 		
@@ -233,6 +237,34 @@ class root.rule
 			return @error(@args.stepMessage ? "Value must be divisible by #{@args.step}")
 
 		undefined
+
+	# Numeric
+	rule_numeric: (val) ->
+		unless val? then return undefined
+
+		if isNaN val
+			return @error(@args.nanMessage ? "Value is not a number")
+
+		if @args.min? and val < @args.min
+			return @error(@args.minMessage ? "Minimum value of #{@args.min}")
+		
+		if @args.max? and val > @args.max
+			return @error(@args.maxMessage ? "Maximum value of #{@args.max}")
+		
+		if @args.step? and val % @args.step isnt 0
+			return @error(@args.stepMessage ? "Value must be divisible by #{@args.step}")
+
+		undefined
+
+	# Time
+	rule_time: (val) ->
+		unless val? and val.length > 0 then return undefined
+
+		v = time.validate(val)
+		if v.valid is false
+			@error v.error
+		else
+			undefined
 
 	# Email Address
 	rule_email: (val) ->
