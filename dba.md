@@ -250,7 +250,7 @@ password
 ```new dba.serial('saltField')```
 link
 -------
-```new dba.link(Model, 'linkType', 'linkColumn)```
+```new dba.link(Model, 'linkType', 'linkColumn')```
 map (deprecated - refer to link)
 -------
 ```new dba.map(Model)```
