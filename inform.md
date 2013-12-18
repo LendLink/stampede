@@ -211,6 +211,17 @@ You can add arbitrary static fields to a form which are not part of the bound mo
 form.removeChildField('salutation')
 ```
 
+#### Skip if NULL
+
+If a field value is NULL, then you can choose to ignore it when inserting/updating the record. Useful on select dropdowns etc.
+
+```coffeescript
+formOptions = 
+	fields: 
+		category_id:
+			skipIfNull: true
+```
+
 
 Embedded Forms
 ---------------
