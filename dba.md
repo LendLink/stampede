@@ -208,3 +208,51 @@ user = {
 userObj = User.fromJson user
 userObj.get('first_name') # returns 'Kevin'
 ```
+
+Data types
+===========
+
+integer
+-------
+```new dba.integer()```
+float
+-----
+```new dba.float()```
+numeric
+-------
+```new dba.numeric()```
+serial
+-------
+```new dba.serial()```
+varchar
+-------
+```new dba.varchar(n)```
+text
+-------
+```new dba.text()```
+boolean
+-------
+```new dba.boolean()```
+date
+-------
+```new dba.date()```
+time
+-------
+```new dba.time()```
+timestamp
+-------
+```new dba.timestamp()```
+enum
+-------
+```new dba.enum(array)```
+password
+-------
+```new dba.serial('saltField')```
+link
+-------
+```new dba.link(Model, 'linkType', 'linkColumn')```
+map (deprecated - refer to link)
+-------
+```new dba.map(Model)```
+
+
