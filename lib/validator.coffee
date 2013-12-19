@@ -216,7 +216,20 @@ class root.rule
 			return @error(@args.minMessage ? "Minimum length of #{@args.min} character#{if @args.min is 1 then '' else 's'}")
 
 		if @args.max? and val.length > @args.max
-			return @error(@args.maxMessage ? "Maximum length of #{@args.max} character#{if @args.min is 1 then '' else 's'}")
+			return @error(@args.maxMessage ? "Maximum length of #{@args.max} character#{if @args.max is 1 then '' else 's'}")
+
+		undefined
+
+	rule_words: (val) ->
+		unless val? then return undefined
+
+		wordCount = val.trim().replace(/\s+/gi, ' ').split(' ').length
+
+		if @args.min? and wordCount < @args.min
+			return @error(@args.minMessage ? "Minimum length of #{@args.min} word#{if @args.min is 1 then '' else 's'}")
+
+		if @args.max? and wordCount > @args.max
+			return @error(@args.maxMessage ? "Maximum length of #{@args.max} word#{if @args.max is 1 then '' else 's'}")
 
 		undefined
 

@@ -317,6 +317,15 @@ __Arguments__
 * __minMessage__ - The message the user will see when the min validation rule fails
 * __maxMessage__ - The message the user will see when the max validation rule fails
 
+words
+--------
+This validator ensures that a string contains a certain amount of words.
+
+__Arguments__
+* __min__ - The minimum length the string can be
+* __max__ - The maximum length the string can be
+* __minMessage__ - The message the user will see when the min validation rule fails
+* __maxMessage__ - The message the user will see when the max validation rule fails
 
 integer
 --------
