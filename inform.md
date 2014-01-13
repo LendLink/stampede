@@ -336,6 +336,10 @@ __Arguments__
 * __max__
 * __step__ - if integer must be an interval, e.g. every 5
 * __errorMessage__ - The message the user will see when this validation rule fails
+* __nanMessage__ - The message the user will see when this validation rule fails
+* __minMessage__ - The message the user will see when this validation rule fails
+* __maxMessage__ - The message the user will see when this validation rule fails
+* __stepMessage__ - The message the user will see when this validation rule fails
 
 numeric
 --------
@@ -345,6 +349,10 @@ __Arguments__
 * __min__
 * __max__
 * __errorMessage__ - The message the user will see when this validation rule fails
+* __nanMessage__ - The message the user will see when this validation rule fails
+* __minMessage__ - The message the user will see when this validation rule fails
+* __maxMessage__ - The message the user will see when this validation rule fails
+* __stepMessage__ - The message the user will see when this validation rule fails
 
 email
 --------
