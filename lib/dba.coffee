@@ -1022,6 +1022,14 @@ class exports.table
 
 						pagerInfo.rows = (sb.bindResult(row) for row in res.rows)
 						callback undefined, pagerInfo
+
+			else if options.countAll? and options.countAll is true
+				dbh.query sb.sql({countAll: true}), sb.bindValues(), (err, res) =>
+					if err? then return callback(err)
+
+					count = res.rows[0].count
+					callback undefined, count
+					
 			else
 				dbh.query sb.sql(), sb.bindValues(), (err, res) =>
 					if err? then return callback(err)
