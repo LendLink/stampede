@@ -163,10 +163,24 @@ class UserModel
 					created: "ASC"
 					last_name: "ASC"
 				limit: 10
-			}, (err, recs) -.
+			}, (err, recs) ->
 				handle.disconnect()
 				# some error checking should go here
 				return next undefined, recs
+				
+	###
+	Fetch count of users
+	###
+	getCount : (next)
+		dba.connect connstring, (err, handle) ->
+			User.select handle, {
+				filter:
+					active: true
+				countAll: true
+			}, (err, count) ->
+				handle.disconnect()
+				# some error checking should go here
+				return next undefined, count
 ```
 
 ## Getters and setters
