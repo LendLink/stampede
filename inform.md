@@ -363,9 +363,10 @@ __Arguments__
 
 date
 --------
-This validator ensures that the date entered matches the format defined with dateFormat.
+This validator ensures that the date entered matches the format defined.
 
 __Arguments__
+* __format__ - The format the date should be supplied in e.g: DD/MM/YYYY HH:MM
 * __errorMessage__ - The message the user will see when this validation rule fails
 
 time
