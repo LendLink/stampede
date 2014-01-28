@@ -340,7 +340,7 @@ class exports.element extends utils.extendEvents
 			if attr == 'value'
 				for ruleType, rule of @validator.ruleList
 					if ruleType == 'date' and moment.isMoment(@attributes.value)
-						fmt = rule.args.format ? rule.args.format ? 'DD/MM/YYYY'
+						fmt = @properties.format ? @properties.format ? 'DD/MM/YYYY'
 						val = @attributes.value.format(fmt)				
 
 			renderedAttributes.push "#{attr}=\"#{val}\""
@@ -561,12 +561,16 @@ class exports.form extends exports.element
 		addValidatorRules = []
 
 		if column? and column.getType() is 'date'
-			fmt = opts.dateFormat ? options.dateFormat ? 'DD/MM/YYYY'
+			fmt = opts.format ? opts.format ? 'DD/MM/YYYY'
 			specialBind = 'moment'
 			if moment.isMoment(boundData) then boundData = boundData.format fmt
 		else if column? and column.getType() is 'time'
-			fmt = opts.timeFormat ? options.timeFormat ? 'HH:mm'
+			fmt = opts.format ? opts.format ? 'HH:mm'
 			specialBind = 'time'
+			if moment.isMoment(boundData) then boundData = boundData.format fmt
+		else if column? and column.getType() is 'timestamp with time zone'
+			fmt = opts.format ? opts.format ? 'DD/MM/YYYY HH:mm'
+			specialBind = 'moment'
 			if moment.isMoment(boundData) then boundData = boundData.format fmt
 
 		newField = undefined
