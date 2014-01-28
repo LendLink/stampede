@@ -340,7 +340,7 @@ class exports.element extends utils.extendEvents
 			if attr == 'value'
 				for ruleType, rule of @validator.ruleList
 					if ruleType == 'date' and moment.isMoment(@attributes.value)
-						fmt = rule.args.format ? rule.args.format ? 'DD/MM/YYYY'
+						fmt = @properties.format ? @properties.format ? 'DD/MM/YYYY'
 						val = @attributes.value.format(fmt)				
 
 			renderedAttributes.push "#{attr}=\"#{val}\""
