@@ -336,15 +336,12 @@ class exports.element extends utils.extendEvents
 	renderAttributes: (useAttributes = @attributes, useFlags = @flags) ->
 		renderedAttributes = []
 		for attr of useAttributes when useAttributes[attr]?
+			val = utils.escapeHTML(useAttributes[attr])
 			if attr == 'value'
 				for ruleType, rule of @validator.ruleList
-					if ruleType == 'date'
+					if ruleType == 'date' and moment.isMoment(@attributes.value)
 						fmt = rule.args.format ? rule.args.format ? 'DD/MM/YYYY'
-						val = @attributes.value.format(fmt)
-					else
-						val = utils.escapeHTML(useAttributes[attr])
-			else
-				val = utils.escapeHTML(useAttributes[attr])
+						val = @attributes.value.format(fmt)				
 
 			renderedAttributes.push "#{attr}=\"#{val}\""
 
