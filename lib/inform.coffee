@@ -336,8 +336,18 @@ class exports.element extends utils.extendEvents
 	renderAttributes: (useAttributes = @attributes, useFlags = @flags) ->
 		renderedAttributes = []
 		for attr of useAttributes when useAttributes[attr]?
-			val = utils.escapeHTML(useAttributes[attr])
+			if attr == 'value'
+				for ruleType, rule of @validator.ruleList
+					if ruleType == 'date'
+						fmt = rule.args.format ? rule.args.format ? 'DD/MM/YYYY'
+						val = @attributes.value.format(fmt)
+					else
+						val = utils.escapeHTML(useAttributes[attr])
+			else
+				val = utils.escapeHTML(useAttributes[attr])
+
 			renderedAttributes.push "#{attr}=\"#{val}\""
+
 		renderedAttributes = renderedAttributes.concat (f for f, v of useFlags when v is true)
 		renderedAttributes
 
