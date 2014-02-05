@@ -341,7 +341,14 @@ class root.rule
 
 		fmt = args ? field.getProperty('format') ? 'DD/MM/YYYY'
 		m = if moment.isMoment(val) then val else moment(val, fmt)
-		if m.isValid() then return undefined
+		if m.isValid()
+			if @args.min? and m.isBefore(@args.min)
+				return @error(@args.minMessage ? "Minimum value of #{@args.min}")
+			
+			if @args.max? and m.isAfter(@args.max)
+				return @error(@args.maxMessage ? "Maximum value of #{@args.max}")
+
+			return undefined
 		@error 'Invalid date'
 
 	# Select box, value must be one of the present options
