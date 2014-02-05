@@ -387,8 +387,12 @@ class exports.element extends utils.extendEvents
 					# Special case for boolean checkboxes
 					if f instanceof exports.multichoice and f.displayAs is 'checkbox'
 						if data?
-							data = true
-							f.setValue f.getProperty('fieldName')
+							if Array.isArray(data) 
+								f.setValue data
+								data = true
+							else
+								data = true
+								f.setValue f.getProperty('fieldName')
 						else
 							data = false
 							f.deselect f.getProperty('fieldName')
@@ -887,6 +891,11 @@ class exports.multichoice extends exports.field
 		id = @getOptionId(val)
 		if id? then @setSelected(id)
 		else
+			if Array.isArray(val)
+				for v in val
+					id = @getOptionId(v)
+					if id? then @addSelected(id)
+					
 			console.log "Multichoice:"
 			console.log val
 		@
