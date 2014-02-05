@@ -366,7 +366,11 @@ date
 This validator ensures that the date entered matches the format defined in options.format
 
 __Arguments__
+* __min__
+* __max__
 * __errorMessage__ - The message the user will see when this validation rule fails
+* __minMessage__ - The message the user will see when this validation rule fails
+* __maxMessage__ - The message the user will see when this validation rule fails
 
 time
 --------
