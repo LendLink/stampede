@@ -354,6 +354,11 @@ class root.rule
 	# Select box, value must be one of the present options
 	rule_selectBox: (val, req, form, field) ->
 		unless val? and val.length > 0 then return undefined
-
-		if field.getOptionId(val)? then return undefined
-		@error 'Unknown option has been selected'
+		if Array.isArray(val)
+			valid = true
+			for v in val
+				if !field.getOptionId(v)? then valid = false
+			if valid is false then @error 'Unknown option has been selected' else return undefined
+		else
+			if field.getOptionId(val)? then return undefined
+			@error 'Unknown option has been selected'
