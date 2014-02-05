@@ -857,7 +857,7 @@ class exports.multichoice extends exports.field
 					attr = utils.clone @getAttributes()
 					if option.value? then attr.value = option.value
 					attr.id = option.id ? @getIdIndex().genUniqueId(attr.id)
-					if option.label? then out.push "<label for=\"#{attr['id']}\">"
+					if option.label? then out.push "<label for=\"#{attr['id']}\" class=\"checkbox\">"
 					out.push "<input type=\"checkbox\" #{@renderAttributes(attr).join(' ')}#{checked} />"
 					if option.label? then out.push " #{option.label}</label>"
 			when 'radio'
@@ -867,7 +867,7 @@ class exports.multichoice extends exports.field
 					attr = utils.clone @getAttributes()
 					if option.value? then attr.value = option.value
 					attr.id = option.id ? @getIdIndex().genUniqueId(attr.id)
-					if option.label? then out.push "<label for=\"#{attr['id']}\">"
+					if option.label? then out.push "<label for=\"#{attr['id']}\" class=\"radio\">"
 					out.push "<input type=\"radio\" #{@renderAttributes(attr).join(' ')}#{checked} />"
 					if option.label? then out.push " #{option.label}</label>"
 		out
