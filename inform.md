@@ -21,7 +21,7 @@ class UserForm
 	getForm: (modelObject, req, next) ->
 
 		formOptions = 
-			csrf: req.session._csrf 			# optional, include hidden CSRF input
+			csrf: req.csrfToken()	 			# optional, include hidden CSRF input
 			method: 'post'						# optional, defaults to POST
 			action: '/register'					# optional, form action
 			dateForm: 'MM/YYYY'					# optional, date format for all date inputs, defaults to UK date format
