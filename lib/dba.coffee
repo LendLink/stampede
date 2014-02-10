@@ -433,14 +433,17 @@ class exports.record
 			if @columnValidator[f] then @columnValidator[f].dump(indent + '  ')
 	
 	set: (col, value) ->
+		if @.getType(col) == 'integer'
+			if parseInt(@.get(col)) != parseInt(value)
+				@modified[col] = true
+		else
+			if @.get(col) != value
+				@modified[col] = true
 		if @table?
 			@data[col] = @columns[col].set(value, @)
-			@modified[col] = true
-			@
 		else
 			@data[col] = value
-			@modified[col] = true
-			@
+		@
 
 	addColumn: (colName, colDef, data) ->
 		@columns[colName] = colDef
