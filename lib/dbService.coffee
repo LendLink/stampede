@@ -15,10 +15,12 @@ class dbConnection extends events.EventEmitter
 	timer:					undefined
 	connectFunction: 		undefined
 	notificationFunction:	undefined
-	pingFrequency:			3
+	pingFrequency:			300
+	locks:					undefined
 
 	constructor: (con) ->
 		@conStr = con
+		@locks = {}
 
 		@on 'connect', =>
 			stampede.lumberjack.info "Connecting to database '#{@conStr}'."
@@ -64,6 +66,19 @@ class dbConnection extends events.EventEmitter
 					@reconnect()
 				# Otherwise we're all good
 
+	name: ->
+		@conStr
+
+	setLock: (l) ->
+		@locks[l] = true
+		@
+
+	isLocked: (l) ->
+		@locks[l] ? false
+
+	releaseLock: (l) ->
+		@locks[l] = false
+		@
 
 
 	onConnect: (func) ->
@@ -91,9 +106,14 @@ class dbConnection extends events.EventEmitter
 
 
 class module.exports
+	isRunning:		false
 	dbList: 		undefined
 	listeners:		undefined
 	repeat:			undefined
+	storedConfig:	undefined
+	tickTimer:		undefined
+	repLock:		undefined
+	tickFrequency:	60
 
 	onStart: ->
 		stampede.lumberjack.critical "No events or handlers defined."
@@ -102,6 +122,7 @@ class module.exports
 		@dbList = []
 		@listeners = {}
 		@repeat = []
+		@storedConfig = {}
 
 		@onStart()
 
@@ -115,8 +136,9 @@ class module.exports
 		@listeners[ev].push func
 		@
 
-	every: (minutes, func) ->
-		@repeat
+	every: (lockName, minutes, func) ->
+		det = { repeatEvery: minutes, tickCount: 1, fn: func, lockName: lockName }
+		@repeat.push det
 		@
 
 	connectDb: (dbStr) ->
@@ -126,17 +148,64 @@ class module.exports
 			for chan of @listeners when @listeners[chan].length > 0
 				db.h().query "LISTEN #{chan}", (err) =>
 					if err?
-						lumberjack.critical "Error listening for notifications."
-					console.log "Listening to #{chan}"
-					db.h().query "NOTIFY announce_notification"
+						stampede.lumberjack.critical "Error listening for notifications."
 
 		db.onNotification (chan, msg) =>
-			console.log chan
-			console.log msg
+			return unless @listeners[chan]?
+
+			for l in @listeners[chan]
+				l(db.h(), chan, msg)
 
 		db.connect()
 		@dbList.push db
+		@startTick() unless @isRunning is true
 
+	startTick: ->
+		@isRunning = true
+		@tick()
+
+	tick: ->
+		stampede.lumberjack.debug "tick!"
+		# Set timer for the next tick (we adjust the sleep time to keep us on exactly the 60 second mark)
+		delta = (@tickFrequency * 1000) - ((new Date()).getTime() % (@tickFrequency * 1000))
+		@tickTimer = setTimeout((=> @tick()), delta)
+
+		# Execute any events
+		for ev in @repeat
+			if --ev.tickCount <= 0
+				ev.tickCount = ev.repeatEvery
+
+				for db in @dbList
+					# Check we're not already running
+					if ev.lockName? and ev.lockName isnt '' and db.isLocked(ev.lockName) is true
+						stampede.lumberjack.warn "Repeat process '#{ev.lockName}' is already running on db '#{db.name()}'."
+						ev.tickCount = 1
+					else
+						@runRepeat(ev, db)
+
+	runRepeat: (ev, db) ->
+		# Obtain the lock
+		db.setLock(ev.lockName)
+
+		# Run the callback
+		ev.fn db.h(), () ->
+			# Release the lock
+			db.releaseLock ev.lockName
+
+
+
+
+	config: ->
+		@storedConfig
+
+	autoConnect: ->
+		# Load configuration
+		config = stampede.config.loadEnvironment('config/environment.json')
+		throw "Could not find a configuration file" unless config?
+
+		@storedConfig = config
+		@connect(config.databases)
+		@
 
 
 
