@@ -28,6 +28,11 @@ exports.isArray = (value) ->
         typeof value.splice is 'function' and
         not ( value.propertyIsEnumerable 'length' )
 
+exports.isMember = (item, array) ->
+	for i in array
+		if i is item then return true
+	return false
+
 
 exports.clone = (obj, excludeProperties = []) ->
 	if not obj? or typeof obj isnt 'object'
