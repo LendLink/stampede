@@ -181,16 +181,17 @@ class module.exports
 						stampede.lumberjack.warn "Repeat process '#{ev.lockName}' is already running on db '#{db.name()}'."
 						ev.tickCount = 1
 					else
-						@runRepeat(ev, db)
+						process.nextTick @runRepeat(ev, db)
 
 	runRepeat: (ev, db) ->
-		# Obtain the lock
-		db.setLock(ev.lockName)
+		() =>
+			# Obtain the lock
+			db.setLock(ev.lockName)
 
-		# Run the callback
-		ev.fn db.h(), () ->
-			# Release the lock
-			db.releaseLock ev.lockName
+			# Run the callback
+			ev.fn db.h(), () ->
+				# Release the lock
+				db.releaseLock ev.lockName
 
 
 
