@@ -367,7 +367,7 @@ class exports.element extends utils.extendEvents
 				recordSet.set subRecordKey, f.bindRecord ? f.model.createRecord()
 				f.bindChildRequest(req, recordSet, subRecordKey)
 			else
-				origData = data = utils.extractFormField(req, f.getAttribute('name'))
+				data = utils.extractFormField(req, f.getAttribute('name'))
 
 				if f.getProperty('skipIfNull') is true
 					continue unless data? and data isnt ''
@@ -401,7 +401,7 @@ class exports.element extends utils.extendEvents
 						f.setValue(data)
 
 					# console.log "Map property #{f.getProperty('dbColumn')} to data #{data}."
-					recordSet.get(recordKey).set(f.getProperty('dbColumn'), data) if origData?
+					recordSet.get(recordKey).set(f.getProperty('dbColumn'), data) if data?
 					recordSet.get(recordKey).setValidator f.getProperty('dbColumn'), f.getValidator()
 				else
 					# We're a virtual column, need to be created in the record
