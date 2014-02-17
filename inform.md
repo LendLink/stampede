@@ -281,6 +281,12 @@ form(method='post', action='')
 Validators
 ===========
 
+Further below is all the built-in validators, but if you ever want to add a custom error to a field, do it like so:
+```coffeescript
+if 1 != 2
+	form.getFieldById('field_name').addError('1 does not equal 2!')
+```
+
 Example:
 
 ```coffeescript
