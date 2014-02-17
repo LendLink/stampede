@@ -175,7 +175,7 @@ class module.exports
 			if --ev.tickCount <= 0
 				ev.tickCount = ev.repeatEvery
 
-				for db in @dbList
+				for db in @dbList when db.h()?
 					# Check we're not already running
 					if ev.lockName? and ev.lockName isnt '' and db.isLocked(ev.lockName) is true
 						stampede.lumberjack.warn "Repeat process '#{ev.lockName}' is already running on db '#{db.name()}'."

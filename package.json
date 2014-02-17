@@ -15,6 +15,7 @@
     "async": "0.2.x",
     "pg": "2.x",
     "express": "3.x",
-    "sprintf-js": "0.x"
+    "sprintf-js": "0.x",
+    "lodash": "2.x"
   }
 }
