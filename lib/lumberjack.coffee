@@ -55,7 +55,7 @@ module.exports = class Lumberjack
 	log: (level, msg, data...) ->
 		levelValue = @levelToValue(level, 'info')
 
-		if data?
+		if data? and data.length > 0
 			msg = sprintfjs.vsprintf msg, data
 
 		for action in @actions
