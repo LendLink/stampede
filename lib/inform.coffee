@@ -621,6 +621,7 @@ class exports.form extends exports.element
 						else newField.setRadio()
 					else
 						newField.setSelect()
+						if opts.multiple? and opts.multiple is true then newField.setAttribute('multiple', 'multiple')
 						showLabel = true
 
 				else
