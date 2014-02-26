@@ -124,6 +124,13 @@ class module.exports
 		@repeat = []
 		@storedConfig = {}
 
+		# Load configuration
+		config = stampede.config.loadEnvironment('config/environment.json')
+		throw "Could not find a configuration file" unless config?
+
+		@storedConfig = config
+
+		# Let's get the ball rolling!
 		@onStart()
 
 	connect: (l) ->
@@ -200,12 +207,7 @@ class module.exports
 		@storedConfig
 
 	autoConnect: ->
-		# Load configuration
-		config = stampede.config.loadEnvironment('config/environment.json')
-		throw "Could not find a configuration file" unless config?
-
-		@storedConfig = config
-		@connect(config.databases)
+		@connect(@config().databases)
 		@
 
 
