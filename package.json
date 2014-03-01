@@ -10,6 +10,8 @@
   "version": "0.1.10",
   "readmeFilename": "README.md",
   "dependencies": {
+    "mocha": "1.x",
+    "should": "3.x",
     "moment": "2.x",
     "sha1": "1.x",
     "async": "0.2.x",

@@ -17,4 +17,7 @@ exports.time = require './time'
 exports.config = require './config'
 exports.app = require './app'
 exports.dbService = require './dbService'
+
 exports._ = require 'lodash'
+exports.mocha = require 'mocha'
+exports.should = require 'should'
