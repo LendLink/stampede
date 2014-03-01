@@ -18,6 +18,9 @@ exports.config = require './config'
 exports.app = require './app'
 exports.dbService = require './dbService'
 
+exports.apiService = {}
+exports.apiService.app = require './apiService/app'
+
 exports._ = require 'lodash'
 exports.mocha = require 'mocha'
 exports.should = require 'should'
