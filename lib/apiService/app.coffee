@@ -15,66 +15,27 @@ io = require 'socket.io'
 log = stampede.log
 
 
-
-# Socket.IO logger - allows us to capture log events and redirect them to stampede / lumberjack.
-class sioLogger
-	enabled:		true
-
-	constructor: (opts = {}) ->
-		@level = 3
-
-		@setEnabled(opts.enabled ? true) 
-
-	log: (type, rest...) ->
-		if type > @level or @enabled is false
-			return @
-
-		msg = rest.join('')
-		switch type
-			when 0 then log.error msg
-			when 1 then log.warn msg
-			when 2 then log.info msg
-			when 3 then log.debug msg
-
-		@
-
-	setEnabled: (en) ->
-		@enabled = en ? true
-		@
-
-	error: (rest...) ->
-		rest.unshift 0
-		@log.apply @, rest
-
-	warn: (rest...) ->
-		rest.unshift 1
-		@log.apply @, rest
-
-	info: (rest...) ->
-		rest.unshift 2
-		@log.apply @, rest
-
-	debug: (rest...) ->
-		rest.unshift 3
-		@log.apply @, rest
+sioLogger = require './sioLogger'
 
 
 # Our main class that API applications will inherit from
 class module.exports extends events.EventEmitter
+	# Internal configuration and storage properties
 	devMode:			true							# if true then we are in dev mode and additional instrumentation is provided at cost to performance
 	httpServer:			undefined						# Our Node.JS HTTP Server
 	expressApp:			undefined						# The express application upon which our API app will be built
 	socketIo:			undefined						# The instance of the websocket library
 	socketIoLogger:		undefined						# The instance of the logger for the websocket library
 
+	# 
 	serverPort:			undefined						# The port we want to run on.  The default value is set in the constructor.
 	name:				'API Application'				# Name of the service, used for logging purposes
 
 	# Initialise a new instance of this module.  If overridden then in general this routine should be called prior to any extensions to the functionality.
 	constructor: (opts = {}) ->
-		@socketIoLogger = new sioLogger()
+		@socketIoLogger = new sioLogger(log)
 
-		@serverPort = opts.port ? 8080					# Specify the port we are running on 
+		@setPort opts.port ? 8080						# Specify the port we are running on 
 		@setDevMode opts.devMode ? true					# Initialise if we should be running in dev mode or not
 
 
@@ -101,6 +62,14 @@ class module.exports extends events.EventEmitter
 
 	getPort: -> @serverPort
 
+	#
+	# Define the Application
+	#
+
+	# Add a new path that contains libraries for us to include within the application
+	addController: (path) ->
+		console.log "Adding controller #{path}"
+		@
 
 	#
 	# Let's get the show on the road!!
@@ -115,12 +84,13 @@ class module.exports extends events.EventEmitter
 		}
 
 		# Fire up the server on the appropriate port
-		@httpServer.listen @serverPort
+		@httpServer.listen @getPort()
 
 		@socketIo.sockets.on 'connection', (socket) =>
 			socket.set 'controllerObject', @
 
 		# We're all done
-		log.info "#{@name} started."
+		log.info "#{@name} started on port #{@getPort()}."
 		@emit 'started'
+		@
 
