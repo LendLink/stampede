@@ -16,6 +16,7 @@ log = stampede.log
 
 
 sioLogger = require './sioLogger'
+responseLog = require './responseLog'
 
 
 # Our main class that API applications will inherit from
@@ -82,6 +83,14 @@ class module.exports extends events.EventEmitter
 		@socketIo = io.listen @httpServer, {
 			logger:			@socketIoLogger
 		}
+
+		# Set up our express middleware
+		@expressApp.use responseLog()
+		@expressApp.use express.compress()
+		@expressApp.use (req, res, next) ->
+			res.send 404, 'Sorry could not find that!'
+		@expressApp.use (err, req, res, next) =>
+			res.send 500, "We made a boo boo: #{err}"
 
 		# Fire up the server on the appropriate port
 		@httpServer.listen @getPort()
