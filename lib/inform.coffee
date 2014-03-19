@@ -884,7 +884,7 @@ class exports.multichoice extends exports.field
 					if ''+val is ''+(o.value ? o.name) then return val
 			when 'checkbox', 'radio'
 				for o in @options
-					if val is o.value then return val
+					if ''+val is ''+o.value then return val
 
 		return undefined
 
