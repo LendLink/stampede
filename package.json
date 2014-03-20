@@ -1,0 +1,24 @@
+{
+  "name": "stampede",
+  "description": "Stampede web development framework",
+  "main": "./lib/stampede",
+  "private": false,
+  "author": {
+    "name": "Chris Mellish"
+  },
+  "repository": "https://github.com/PureInnovation/stampede.git",
+  "version": "0.1.10",
+  "readmeFilename": "README.md",
+  "dependencies": {
+    "mocha": "1.x",
+    "should": "3.x",
+    "moment": "2.x",
+    "sha1": "1.x",
+    "async": "0.2.x",
+    "pg": "2.x",
+    "express": "3.x",
+    "sprintf-js": "0.x",
+    "lodash": "2.x",
+    "socket.io": "0.9.x"
+  }
+}
