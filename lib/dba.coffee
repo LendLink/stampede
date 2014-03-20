@@ -931,7 +931,7 @@ class exports.table
 		whereClause = []
 		for key in @primaryKeys
 			bind.push pks[key]
-			whereClause.push "#{key} = $#{bind.length}"
+			whereClause.push "#{@columns[key].getDbFieldName()} = $#{bind.length}"
 
 		sql = "UPDATE #{@tableName()} SET #{updateColumns.join(', ')} WHERE #{whereClause.join(' AND ')}
 				RETURNING #{returningColumns.join(', ')}"
