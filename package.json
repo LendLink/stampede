@@ -7,7 +7,7 @@
     "name": "Chris Mellish"
   },
   "repository": "https://github.com/PureInnovation/stampede.git",
-  "version": "0.1.12",
+  "version": "0.1.13",
   "readmeFilename": "README.md",
   "dependencies": {
     "mocha": "1.x",
