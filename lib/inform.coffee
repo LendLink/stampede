@@ -348,6 +348,15 @@ class exports.element extends utils.extendEvents
 		renderedAttributes = renderedAttributes.concat (f for f, v of useFlags when v is true)
 		renderedAttributes
 
+	renderHiddenFields: (doJoin = true) ->
+		@rendered = true
+		ele = []
+		for f in @childFields when f.rendered is false
+			if f instanceof exports.hidden
+				ele = ele.concat(f.renderElement())
+
+		if doJoin is true then ele.join('') else ele
+
 	renderRest: (doJoin = true) ->
 		@rendered = true
 		ele = []
