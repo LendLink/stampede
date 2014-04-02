@@ -43,7 +43,7 @@ module.exports = class Lumberjack
 	chainFile: (fileName, minLevel, overrideFormat) ->
 		@actions.push {file: fileName, minLevel: @levelToValue(minLevel, 'info'), format: overrideFormat}
 
-	formatMessage: (format, level, msg, data) ->
+	formatMessage: (format, level, msg) ->
 		format.replace /%[dtlLm]/g, (code) ->
 			switch code
 				when '%d' then moment().format('YYYY-MM-DD')
@@ -51,16 +51,21 @@ module.exports = class Lumberjack
 				when '%l' then level
 				when '%L' then level.toUpperCase()
 				when '%m' then msg
+				else code
 
-	log: (level, msg, data...) ->
-		levelValue = @levelToValue(level, 'info')
-
+	logFormat: (level, msg, data...) ->
 		if data? and data.length > 0 and (data.length isnt 1 or data[0] isnt undefined)
 			msg = sprintfjs.vsprintf msg, data
 
+		@log level, msg
+
+
+	log: (level, msg) ->
+		levelValue = @levelToValue(level, 'info')
+
 		for action in @actions
 			if action.minLevel <= levelValue
-				fMsg = @formatMessage action.format ? @defaultFormat, level, msg, data
+				fMsg = @formatMessage action.format ? @defaultFormat, level, msg
 
 				if action.console?
 					console.log fMsg
@@ -71,15 +76,15 @@ module.exports = class Lumberjack
 							console.log "Couldn't write log line: #{fMsg}"
 
 
-	debug: (msg, data) ->
-		@log('debug', msg, data)
-	info: (msg, data) ->
-		@log('info', msg, data)
-	warn: (msg, data) ->
-		@log('warning', msg, data)
-	warning: (msg, data) ->
-		@log('warning', msg, data)
-	error: (msg, data) ->
-		@log('error', msg, data)
-	critical: (msg, data) ->
-		@log('critical', msg, data)
+	debug: (msg) ->
+		@log('debug', msg)
+	info: (msg) ->
+		@log('info', msg)
+	warn: (msg) ->
+		@log('warning', msg)
+	warning: (msg) ->
+		@log('warning', msg)
+	error: (msg) ->
+		@log('error', msg)
+	critical: (msg) ->
+		@log('critical', msg)
