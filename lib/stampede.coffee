@@ -21,6 +21,7 @@ exports.dbService = require './dbService'
 exports.apiService = {}
 exports.apiService.app = require './apiService/app'
 
-exports._ = require 'lodash'
+exports._ = exports.lodash = require 'lodash'
 exports.mocha = require 'mocha'
 exports.should = require 'should'
+exports.path = require 'path'
