@@ -17,11 +17,12 @@ exports.time = require './time'
 exports.config = require './config'
 exports.app = require './app'
 exports.dbService = require './dbService'
-
-exports.apiService = {}
-exports.apiService.app = require './apiService/app'
+exports.router = require './router'
+exports.route = exports.router.route
 
 exports._ = exports.lodash = require 'lodash'
 exports.mocha = require 'mocha'
 exports.should = require 'should'
 exports.path = require 'path'
+exports.async = require 'async
+'

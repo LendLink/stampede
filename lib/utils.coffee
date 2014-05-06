@@ -2,6 +2,7 @@
 # Utility library
 ###
 
+stampede = require './stampede'
 events = require 'events'
 
 # Returns:  number, array, object, string, etc.
@@ -125,6 +126,15 @@ exports.extractFormFieldPath = (obj, path) ->
 exports.extractFormField = (req, path) ->
 	exports.extractFormFieldPath(req.body, path)
 
+
+exports.objectMergeDefault = (source, merge) ->
+	for k,v of merge
+		if stampede._.isPlainObject(v) and source[k]? and stampede._.isPlainObject(source[k])
+			source[k] = exports.objectMergeDefault source[k], v
+		else
+			source[k] ?= v
+
+	source
 
 class exports.idIndex
 	index: undefined

@@ -18,13 +18,18 @@ express = require 'express'
 commander = require 'commander'
 os = require 'os'
 fs = require 'fs'
+async = require 'async'
+cluster = require 'cluster'
 
 log = stampede.log
 
 # The application class in all its glory.
 # New user applications should inherit from this class and extend it as required.
 
-class module.exports extends stampede.events.eventEmitter
+forkEnvVar = '__STAMPEDE_APP_SERVICE__'
+
+
+class module.exports #extends stampede.events
 	version:			'0.0.1'
 	name:				'<unknown>'
 	baseDirectory:		'./'
@@ -32,22 +37,31 @@ class module.exports extends stampede.events.eventEmitter
 	config:				undefined
 	environmentFile:	undefined
 	environment:		undefined
+	runningServices:	undefined
+	workerService:		undefined
 
-	constructor: (baseDir = './') ->
+	# Class methods
+	@service:			require './app/service'
+	@api:				require './app/api'
+
+	# Constructor for instances
+	constructor: (baseDir) ->
 		@config = {}
 		@environment = { name: '<none>' }
 		@environmentFile = {}
+		@runningServices = {}
 
-		if baseDir is './'
-			@setBaseDirectory stampede.path.dirname process.mainModule.filename
-		else 
+		if baseDir?
 			@setBaseDirectory = baseDir
+		else 
+			@setBaseDirectory stampede.path.dirname process.mainModule.filename
 
 
 	## Start up the app
 	start: (callback) ->
+		# Process our command line arguments
 		@processCommandArguments () =>
-			log.info "Initialising system #{commander.environment}"
+			log.info "Initialising system #{if commander.environment? then commander.environment else 'using hostname'}"
 
 			@loadConfiguration (confErr, environment, config) =>
 				# Did we receive an error
@@ -62,12 +76,17 @@ class module.exports extends stampede.events.eventEmitter
 				@useConfiguration environment, config
 
 				# Okay we're all set up, let's look at the command line options to see what it is we're doing
-				if commander.args.length is 0
-					# We should boot up all default services for this environment
-				else if commander.task?
-					# Time to run a specific task
-				else
-					log.critical "No action specified (no tasks, argument#{if commander.args.length is 1 then ' is' else 's are'} '#{commander.args.join(' ')}')"
+				if cluster.isMaster
+					if commander.args.length is 0
+						# We should boot up all default services for this environment
+						@startAllServices()
+					else if commander.task?
+						# Time to run a specific task
+					else
+						log.critical "No action specified (no tasks, argument#{if commander.args.length is 1 then ' is' else 's are'} '#{commander.args.join(' ')}')"
+				else if cluster.isWorker
+					serviceName = process.env[forkEnvVar]
+					@startService serviceName
 
 
 
@@ -118,6 +137,7 @@ class module.exports extends stampede.events.eventEmitter
 		
 		@environmentFile.environments ?= {} 	# Make sure environments is defined, even if it's empty
 		@environmentFile.default ?= {}  		# Make sure default is defined, even if it's empty
+		@environmentFile.services ?= {}  		# Make sure services is defined, even if it's empty
 
 		@initialiseEnvironment callback
 
@@ -164,7 +184,7 @@ class module.exports extends stampede.events.eventEmitter
 			config = {}
 
 		# Merge our configuration with the defaults
-		config = mergeConfig config, defaultConfig
+		config = stampede.utils.objectMergeDefault config, defaultConfig
 
 		# Done loading and merging, so call the callback with our resulting configurations
 		process.nextTick => callback undefined, envConfig, config
@@ -199,12 +219,93 @@ class module.exports extends stampede.events.eventEmitter
 		@config = config
 		@
 
+	# Start up everything!
+	startAllServices: ->
+		log.info "Starting all services for this environment."
+		@environment.services ?= []
+		async.each @environment.services, (service, cb) =>
+			if @runningServices[service]?
+				return cb("Service #{service} cannot be started twice.")
+			
+			unless @environmentFile.services[service]?
+				return cb "Service #{service} not defined."
 
-mergeConfig = (source, merge) ->
-	for k,v of merge
-		if stampede._.isPlainObject(v) and source[k]? and stampede._.isPlainObject(source[k])
-			source[k] = mergeConfig source[k], v
-		else
-			source[k] ?= v
+			sd = @environmentFile.services[service]
+			log.info "Starting service '#{service}'"
+			@runningServices[service] = sv = new runningService(service)
+			threads = 1
+			if sd.cluster is false then threads = 1
+			else if sd.cluster is true then threads = os.cpus.length
+			else if sd.cluster? then threads = sd.cluster
+			sv.startThreads(threads)
+			cb()
+		, (err) =>
+			if err?
+				log.critical "Error starting services: #{err}"
+				process.exit()
+			log.info "All services started."
 
-	source
+	# Start up an individual service
+	startService: (name) ->
+		service = @environmentFile.services[name]
+		unless service?
+			log.critical "Service '#{name}' not defined."
+			cluster.worker.kill()
+			return
+
+		unless service.path?
+			log.critical "Service '#{name}' does not specify a library path."
+			cluster.worker.kill()
+			return
+
+		log.debug "Loading service #{name} on worker #{cluster.worker.id}"
+
+		if require.cache[service.path]?
+			log.debug "Removing cached service #{name} from require."
+			delete require.cache[service.path]
+
+		serviceLib = require @getBaseDirectory service.path
+		log.debug "Loaded service #{name}"
+		@workerService = new serviceLib(@, @config)
+		log.info "Service #{@workerService.name} initialised, starting."
+		@workerService.start()
+
+
+
+class runningService
+	workers:			undefined
+	shutdown:			false
+	name:				'<unknown>'
+
+	constructor: (srv) ->
+		@name = srv
+		@workers = {}
+
+	startThreads: (n) ->
+		if cluster.isMaster
+			log.debug "Starting worker thread(s): #{n}"
+			env = {}
+			env[forkEnvVar] = @name
+			for i in [1..n]
+				log.debug "Starting worker thread #{i} of #{n}"
+				@setupWorker cluster.fork(env)
+
+		else if cluster.isWorker
+			log.info "Worker starting: #{cluster.worker.id}"
+			process.on 'message', (msg) ->
+				console.log "Message received: #{msg}"
+
+	setupWorker: (worker) ->
+		@workers[worker.id] = worker
+		
+		worker.on 'online', =>
+			log.debug "Worker #{worker.id} started"
+
+		worker.on 'exit', (code, signal) =>
+			delete @workers[worker.id]
+
+			if worker.suicide
+				log.debug "Worker #{worker.id} exited voluntarily."
+			else
+				log.info "Worker #{worker.id} unexpectedly exited (#{code}, #{signal}), restarting."
+				@startThreads 1

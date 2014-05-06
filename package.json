@@ -20,7 +20,6 @@
     "sprintf-js": "0.x",
     "lodash": "2.x",
     "socket.io": "0.9.x",
-    "commander": "2.x",
-    "path": "0.x"
+    "commander": "2.x"
   }
 }

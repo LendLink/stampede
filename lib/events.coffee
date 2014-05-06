@@ -11,7 +11,7 @@ Event types:
 
 async = require 'async'
 
-class exports.eventEmitter
+class module.exports
 	onListeners: 		undefined
 	onceListeners:		undefined
 	filterListeners:	undefined
