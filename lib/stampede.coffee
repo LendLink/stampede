@@ -24,5 +24,5 @@ exports._ = exports.lodash = require 'lodash'
 exports.mocha = require 'mocha'
 exports.should = require 'should'
 exports.path = require 'path'
-exports.async = require 'async
-'
+exports.async = require 'async'
+exports.moment = require 'moment'
