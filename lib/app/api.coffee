@@ -22,6 +22,7 @@ class apiRequest
 	isExpress:				false
 	isInternal:				false
 	params:					undefined
+	routeVars:				undefined
 	args:					undefined
 	expressReq:				undefined
 	expressRes:				undefined
@@ -31,27 +32,33 @@ class apiRequest
 
 	constructor: (p) ->
 		@parentApi = p
-		@params = {}
-		@args = {}
+		@routeVars = {}
 		@pgDbList = []
+		@params = {}
 
 	setExpress: (@isExpress = false, @expressReq, @expressRes, @expressNext) -> @
 	
 	setParams: (@params) -> @
 
-	param: (v) -> @params[v] ? @arg v
+	param: (v) -> @params[v]
 
-	route: (v) -> @params[v]
+	setParam: (k, v) ->
+		@params[k] = v
+		@
+
+	route: (v) -> @routeVars[v]
+
+	setRouteVars: (@routeVars) -> @
 
 	arg: (v) ->
 		if @isExpress is true
-			@expressReq.param v
+			@expressReq.param[v]
 		else
 			undefined
 
 	queryArg: (v) ->
 		if @isExpress is true
-			@expressReq.query v
+			@expressReq.query[v]
 		else
 			undefined
 
@@ -156,12 +163,16 @@ class module.exports extends service
 		# We have a match, let's build up the internal request object
 		apiReq = new apiRequest(@)
 		apiReq.setExpress true, req, res, next
-			.setParams match.vars
+			.setRouteVars match.vars
 
 		method = req.method.toLowerCase()
 		if match.route[method]?
-			match.route[method] apiReq, (response) =>
-				apiReq.send response
+			match.route[method+'BuildParams'] apiReq, (err) =>
+				if err? then match.route.error apiReq, err, (response) =>
+					apiReq.send response
+				else
+					match.route[method] apiReq, (response) =>
+						apiReq.send response
 		else
 			next()
 

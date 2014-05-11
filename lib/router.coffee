@@ -5,6 +5,40 @@ log = stampede.log
 class routeClass
 	url:				''
 
+	routeBuildParams: (apiReq, callback) ->
+		unless @routeParams
+			return process.nextTick => callback()
+
+		stampede.async.each Object.keys(@routeParams), (name, cb) =>
+			p = @routeParams[name]
+			val = apiReq.route name
+			p.doCheck "route[#{name}]", val, apiReq, (checkErr) =>
+				if checkErr?
+					cb checkErr
+				else
+					apiReq.setParam p.getParamName(name), val
+					cb()
+		, (err) =>
+			if err? then return callback err
+			process.nextTick => callback()
+
+	getBuildParams: (apiReq, callback) ->
+		unless @getParams
+			return @routeBuildParams apiReq, callback
+
+		stampede.async.each Object.keys(@getParams), (name, cb) =>
+			p = @getParams[name]
+			val = apiReq.queryArg name
+			p.doCheck "get[#{name}]", val, apiReq, (checkErr) =>
+				if checkErr?
+					cb checkErr
+				else
+					apiReq.setParam p.getParamName(name), val
+					cb()
+		, (err) =>
+			if err? then return callback err
+			@routeBuildParams apiReq, callback
+
 	get: (req) ->
 		@req.notFound()
 
@@ -22,6 +56,9 @@ class routeClass
 		u = [u] unless stampede._.isArray u
 		
 		(url.split /\// for url in u)
+
+	error: (apiReq, err, cb) ->
+		cb { error: err }
 
 
 class routeMatcher
@@ -116,22 +153,53 @@ Define our validator helper class
 
 ###
 
-class validator
-	nullable:		false
+class paramDefinition
+	nullable:		true
+	paramName:		undefined
 
-	allowNull: ->
+	required: ->
+		@nullable = false
+		@
+
+	null: @required
+	allowNull: @required
+
+	notRequired: ->
 		@nullable = true
 		@
 
-	null: @allowNull
+	notNull: @notRequired
+	disallowNull: @notRequired
 
-	notNull: ->
-		@nullable = false
-		@
 
 	checkNull: (val) ->
 		if val? then return true		# If we have a value then we're all okay
 		return @nullable				# Otherwise we can simply return the value of @nullable
+
+	setParamName: (@paramName) -> @
+	getParamName: (def) -> @paramName ? def
+
+	doCheck: (paramName, val, apiReq, cb) ->
+		# Check for nulls
+		unless val?
+			if @nullable then return cb()
+			return cb("#{paramName}: is a required paramter")
+
+		# Check against our regex
+		if @regex? and @regex.test(val) is false
+			return cb "#{paramName}: invalid value supplied"
+
+		# Call our check function
+		if @check?
+			@check val, (err) =>
+				if err? then cb "#{paramName}: #{err}"
+				else cb()
+			, apiReq
+		else
+			# No more checks so we can call our callback
+			cb()
+
+
 
 ###
 
@@ -139,7 +207,7 @@ Define our preset validation rules
 
 ###
 
-class validatorInteger extends validator
+class validatorInteger extends paramDefinition
 	typeName:		'integer'
 	min:			undefined
 	max:			undefined
@@ -156,10 +224,10 @@ class validatorInteger extends validator
 		if @max? and val > @max then return cb "Value greater than maximum of #{@max}"
 		cb()
 
-validator.integer = -> new validatorInteger()
+paramDefinition.integer = -> new validatorInteger()
 
 
-class validatorString extends validator
+class validatorString extends paramDefinition
 	minLength:		undefined
 	maxLength:		undefined
 
@@ -173,7 +241,7 @@ class validatorString extends validator
 		if @maxLength and val.length > @maxLength then return cb "Length must be less than #{@maxLength}"
 		cb()
 
-validator.string = -> new validatorString()
+paramDefinition.string = -> new validatorString()
 
 ###
 
@@ -182,10 +250,10 @@ Our core router class which is the core export of this library
 ###
 
 class module.exports
-	@route:			routeClass
-	@validator:		validator
+	@route:				routeClass
+	@paramDefinition:	paramDefinition
 
-	routes:			undefined
+	routes:				undefined
 
 	constructor: ->
 		@routes = new routeMatcher()
