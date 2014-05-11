@@ -5,6 +5,12 @@ log = stampede.log
 class routeClass
 	url:				''
 
+	get: (req) ->
+		@req.notFound()
+
+	post: (req) ->
+		@req.notFound()
+
 	getUrl: ->
 		if stampede._.isArray @url
 			@url.join ','
@@ -26,21 +32,6 @@ class routeMatcher
 
 	constructor: ->
 		@namedPaths = {}
-
-	dump: (indent = '') ->
-		if stampede._.size(@namedPaths) > 0
-			console.log indent + 'Named Routes:'
-			for n, sub of @namedPaths
-				console.log indent + '  ' + n
-				sub.dump(indent + '    ')
-
-		if @variableName
-			console.log indent + 'Variable:'
-			console.log indent + '  :' + @variableName
-			@variableRoute.dump(indent + '    ')
-
-		if @endPointRoute
-			console.log indent + 'End Point for: ' + @endPointRoute.url
 
 	addRouteSpec: (spec, routerInstance) ->
 		# Is the spec zero length?  If so we're defining the end point
@@ -79,14 +70,132 @@ class routeMatcher
 		@namedPaths[part] = new routeMatcher() unless @namedPaths[part]
 		@namedPaths[part].addRouteSpec spec, routerInstance
 
+	find: (spec, vars) ->
+		# Is the spec zero length?  If we're an end point then groovy, else return no match
+		if spec.length is 0
+			if @endPointRoute?
+				return { route: @endPointRoute, vars: vars }
+			else
+				return undefined
+
+		# Otherwise we have some matching to do - do we match any predefined routes?
+		part = spec.shift()
+
+		if @namedPaths[part]?
+			return @namedPaths[part].find spec, vars
+
+		# Final check, is a variable defined?  If so save the value and move on to the next step of the route
+		if @variableName?
+			vars[@variableName] = part
+			return @variableRoute.find spec, vars
+
+		# No match I'm afraid, return undefined
+		return undefined
+
+
+
+	dump: (indent = '') ->
+		if stampede._.size(@namedPaths) > 0
+			console.log indent + 'Named Routes:'
+			for n, sub of @namedPaths
+				console.log indent + '  ' + n
+				sub.dump(indent + '    ')
+
+		if @variableName
+			console.log indent + 'Variable:'
+			console.log indent + '  :' + @variableName
+			@variableRoute.dump(indent + '    ')
+
+		if @endPointRoute
+			console.log indent + 'End Point for: ' + @endPointRoute.url
+
+
+###
+
+Define our validator helper class
+
+###
+
+class validator
+	nullable:		false
+
+	allowNull: ->
+		@nullable = true
+		@
+
+	null: @allowNull
+
+	notNull: ->
+		@nullable = false
+		@
+
+	checkNull: (val) ->
+		if val? then return true		# If we have a value then we're all okay
+		return @nullable				# Otherwise we can simply return the value of @nullable
+
+###
+
+Define our preset validation rules
+
+###
+
+class validatorInteger extends validator
+	typeName:		'integer'
+	min:			undefined
+	max:			undefined
+
+	setMin: (@min) -> @
+	getMin: -> @min
+	setMax: (@max) -> @
+	getMax: -> @max
+
+	regex: /^[0-9]+$/
+
+	check: (val, cb) ->
+		if @min? and val < @min then return cb "Value less than minimum of #{@min}"
+		if @max? and val > @max then return cb "Value greater than maximum of #{@max}"
+		cb()
+
+validator.integer = -> new validatorInteger()
+
+
+class validatorString extends validator
+	minLength:		undefined
+	maxLength:		undefined
+
+	setMinLength: (@minLength) -> @
+	getMinLength: -> @minLength
+	setMaxLength: (@maxLength) -> @
+	getMaxLength: -> @maxLength
+
+	check: (val, cb) ->
+		if @minLength and val.length < @minLength then return cb "Length must be greater than #{@minLength}"
+		if @maxLength and val.length > @maxLength then return cb "Length must be less than #{@maxLength}"
+		cb()
+
+validator.string = -> new validatorString()
+
+###
+
+Our core router class which is the core export of this library
+
+###
 
 class module.exports
 	@route:			routeClass
+	@validator:		validator
 
 	routes:			undefined
 
 	constructor: ->
 		@routes = new routeMatcher()
+
+	find: (url = '/') ->
+		urlSpec = url.split /\//
+		urlSpec.pop() while urlSpec.length > 0 and urlSpec[urlSpec.length - 1] is ''
+		urlSpec.shift() while urlSpec.length > 0 and urlSpec[0] is ''
+
+		@routes.find urlSpec, {}
 
 	addRoute: (r, callback) ->
 		# Check the url being added is an instance of our route class
@@ -104,7 +213,5 @@ class module.exports
 				log.debug "Adding route to router: '#{routeSpec.join ' / '}'"
 				@routes.addRouteSpec routeSpec, r
 
-		console.log "Route table:"
-		@routes.dump()
 		@
 

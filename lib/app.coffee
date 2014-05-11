@@ -189,6 +189,9 @@ class module.exports #extends stampede.events
 		# Done loading and merging, so call the callback with our resulting configurations
 		process.nextTick => callback undefined, envConfig, config
 
+	getEnvironment: -> @environment
+
+	getPostgres: (dbName) -> @environment.postgres?[dbName]
 
 	# Force the loading of a file via require
 	forceRequireObject: (fn) ->

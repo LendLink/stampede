@@ -24,6 +24,10 @@ class module.exports extends events
 			if done? then process.nextTick => done()
 			@
 
+	## Accessors
+	getConfig: -> @config
+	getApp: -> @parentApp
+
 	## Utility functions
 
 	# Merge our configuration with a local configuration source
