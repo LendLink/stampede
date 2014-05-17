@@ -17,6 +17,7 @@ log = stampede.log
 sioLogger = require './sioLogger'
 service = require './service'
 
+
 class apiRequest
 	parentApi:				undefined
 	isExpress:				false
@@ -29,6 +30,7 @@ class apiRequest
 	expressNext:			undefined
 	responseSent:			false
 	pgDbList:				undefined
+	url:					''
 
 	constructor: (p) ->
 		@parentApi = p
@@ -49,6 +51,9 @@ class apiRequest
 	route: (v) -> @routeVars[v]
 
 	setRouteVars: (@routeVars) -> @
+
+	setUrl: (@url) -> @
+	getUrl: -> @url
 
 	arg: (v) ->
 		if @isExpress is true
@@ -96,6 +101,12 @@ class apiRequest
 			@expressRes.json response
 		else
 			console.log "Eh?  Dunno how to send (api.coffee)"
+
+	sendError: (error, detail = undefined, doNotFinish = false) ->
+		errObj = { error: error, url: @url }
+		if detail? then errObj.detail = detail
+
+		@send errObj, doNotFinish
 
 	notFound: ->
 		if @isExpress is true
@@ -158,23 +169,100 @@ class module.exports extends service
 		match = @router.find req.path
 
 		# If we don't have a match tell express to move on to the next handler
-		return next() unless match?
+		unless match?
+			log.debug "Route for url '#{req.path}' not found."
+			return next()
+
+		log.debug "Route for url '#{req.path}' was found."
 
 		# We have a match, let's build up the internal request object
 		apiReq = new apiRequest(@)
 		apiReq.setExpress true, req, res, next
 			.setRouteVars match.vars
+			.setUrl req.path
 
 		method = req.method.toLowerCase()
+
+		# Do we have a matching definition for our method type?
 		if match.route[method]?
+			log.debug "Handler for method #{method} was found"
+			# Build up our params objects
 			match.route[method+'BuildParams'] apiReq, (err) =>
-				if err? then match.route.error apiReq, err, (response) =>
-					apiReq.send response
+				# If there's an error building our parameters then send the error respond
+				if err?
+					log.debug "Error building params"
+					apiReq.sendError err
 				else
-					match.route[method] apiReq, (response) =>
-						apiReq.send response
+					log.debug "Params processed"
+					# We have everything we need to generate our reponse, first let's see if we have a simple function to call
+					if stampede._.isFunction match.route[method]?
+						log.debug "Calling handler function"
+						match.route[method] apiReq, (response) =>
+							apiReq.send response
+					else
+						# Nope, okay let's go through our checks for the clever bits of automated functionality
+						log.debug "Auto DB request found"
+						@autoRequestDb match.route[method], apiReq
 		else
+			log.debug "Handler for method #{method} was not found"
 			next()
+
+	autoRequestDb: (route, apiReq) ->
+		if route.db?
+			apiReq.connectPostgres route.db, (err, dbh) =>
+				if err? 
+					apiReq.sendError err
+				else
+					@autoRequestRunQuery route, apiReq, dbh
+		else
+			apiReq.sendError "No DB connection specified"
+
+	autoRequestRunQuery: (route, apiReq, dbh) ->
+		if route.fetchAll? and route.fetchOne?
+			apiReq.error "Only one of fetchAll and fetchOne can be defined"
+		else if route.fetchAll? or route.fetchOne?
+			# Map any bind variables to our validated parameters
+			bind = (apiReq.param(k) for k in (route.bind ? []))
+
+			# Execute the query
+			dbh.query (route.fetchAll ? route.fetchOne), bind, (err, res) =>
+				if err?
+					apiReq.sendError "Error running query: #{err}"
+				else
+					if route.fetchOne? and res.rows.length > 1
+						apiReq.sendError "fetchOne returned more than one result"
+					else if res.rows.length is 0
+						apiReq.notFound()
+					else
+						# Pass our results on to the filter
+						@autoRequestFilter route, apiReq, dbh, res.rows, route.fetchOne?
+		else
+			apiReq.error "Either fetchAll or fetchOne must be defined"
+
+	autoRequestFilter: (route, apiReq, dbh, res, fetchOne) ->
+		if route.filter?
+			# Use async to process each result row, filtering the result back into our result object
+			stampede.async.map res, (item, callback) =>
+				if route.filter.length is 2 then route.filter item, callback
+				else route.filter apiReq, item, callback
+			, (err, results) =>
+				if err?
+					apiReq.error err
+				else if fetchOne
+					if route.send? then route.send apiReq, results[0]
+					else apiReq.send results[0]
+				else
+					results = stampede._.compact results
+					if route.send? then route.send apiReq, results
+					else apiReq.send results
+		else
+			if fetchOne
+				if route.send? then route.send apiReq, res[0]
+				else apiReq.send res[0]
+			else
+				if route.send? then route.send apiReq, res
+				else apiReq.send res
+
 
 	addHandlerDirectory: (path, done) ->
 		path = @filepath path

@@ -4,7 +4,7 @@ app.coffee - Skeleton Stampede Application
 
 ###
 We support the following application related activities:
-	- tasks 	- command line jobs and commands that run in their own isolated 
+	- tasks 	- command line jobs and commands that run in their own isolated
 	- api		- REST / Websocket API
 	- web		- HTTP based websites
 	- service	- services that run in the background, responding to events
@@ -43,6 +43,7 @@ class module.exports #extends stampede.events
 	# Class methods
 	@service:			require './app/service'
 	@api:				require './app/api'
+	@task:				require './app/task'
 
 	# Constructor for instances
 	constructor: (baseDir) ->
@@ -53,7 +54,7 @@ class module.exports #extends stampede.events
 
 		if baseDir?
 			@setBaseDirectory = baseDir
-		else 
+		else
 			@setBaseDirectory stampede.path.dirname process.mainModule.filename
 
 
@@ -61,7 +62,7 @@ class module.exports #extends stampede.events
 	start: (callback) ->
 		# Process our command line arguments
 		@processCommandArguments () =>
-			log.info "Initialising system #{if commander.environment? then commander.environment else 'using hostname'}"
+			log.info "Initialising system #{if commander.environment? then commander.environment else 'using hostname ' + os.hostname()}"
 
 			@loadConfiguration (confErr, environment, config) =>
 				# Did we receive an error
@@ -77,11 +78,13 @@ class module.exports #extends stampede.events
 
 				# Okay we're all set up, let's look at the command line options to see what it is we're doing
 				if cluster.isMaster
-					if commander.args.length is 0
+					if commander.task?
+						# We should execute a task
+						log.info "Load and Execute task #{commander.task}"
+						@execTask commander.task
+					else if commander.args.length is 0
 						# We should boot up all default services for this environment
 						@startAllServices()
-					else if commander.task?
-						# Time to run a specific task
 					else
 						log.critical "No action specified (no tasks, argument#{if commander.args.length is 1 then ' is' else 's are'} '#{commander.args.join(' ')}')"
 				else if cluster.isWorker
@@ -117,7 +120,7 @@ class module.exports #extends stampede.events
 			.option('-t, --task <task>', 'Run a specific task instead of booting the service')
 
 		commander.parse process.argv
-		
+
 		if commander.path? then @setBaseDirectory(commander.path)
 
 		if commander.debug? and commander.debug is true
@@ -132,12 +135,13 @@ class module.exports #extends stampede.events
 	## Load the service configuration
 	loadConfiguration: (callback) ->
 		log.debug 'Loading environment configuration'
-		
-		@environmentFile = @forceRequireObject @getBaseDirectory 'config/environment'
-		
+
+		@environmentFile = @forceRequireObject @getBaseDirectory 'config/app'
+
 		@environmentFile.environments ?= {} 	# Make sure environments is defined, even if it's empty
 		@environmentFile.default ?= {}  		# Make sure default is defined, even if it's empty
 		@environmentFile.services ?= {}  		# Make sure services is defined, even if it's empty
+		@environmentFile.tasks ?= {}	  		# Make sure tasks is defined, even if it's empty
 
 		@initialiseEnvironment callback
 
@@ -151,7 +155,7 @@ class module.exports #extends stampede.events
 			log.debug "Using command line set environment of #{commander.environment}."
 
 			config = @environmentFile.environments[commander.environment]
-			
+
 			unless config?
 				return process.nextTick => callback("Environment #{commander.environment} not defined.")
 
@@ -202,14 +206,14 @@ class module.exports #extends stampede.events
 		for ext in ['', '.json', '.js', '.coffee', '.node']
 			if fs.existsSync(fn + ext)
 				obj = require fn
-				
+
 				unless obj?
 					log.error "Could not forceRequireObject file '#{fn}'"
 					return {}
 
 				if stampede._.isPlainObject obj
 					return obj
-				
+
 				log.error "File '#{fn}' did not return a plain object in forceRequireObject"
 				return {}
 
@@ -229,7 +233,7 @@ class module.exports #extends stampede.events
 		async.each @environment.services, (service, cb) =>
 			if @runningServices[service]?
 				return cb("Service #{service} cannot be started twice.")
-			
+
 			unless @environmentFile.services[service]?
 				return cb "Service #{service} not defined."
 
@@ -273,6 +277,22 @@ class module.exports #extends stampede.events
 		log.info "Service #{@workerService.name} initialised, starting."
 		@workerService.start()
 
+	# Execute a task
+	execTask: (name) ->
+		unless @environmentFile.tasks[name]?
+			log.critical "Task '#{name}' is not defined."
+			return
+
+		classFile = require @getBaseDirectory @environmentFile.tasks[name]
+		log.debug "Loaded task #{name}"
+
+		task = new classFile(@)
+		task.run commander.args, (err) =>
+			if err?
+				log.error "Error executing task #{name}: #{err}"
+			else
+				log.info "Task #{name} successfully completed running"
+
 
 
 class runningService
@@ -300,7 +320,7 @@ class runningService
 
 	setupWorker: (worker) ->
 		@workers[worker.id] = worker
-		
+
 		worker.on 'online', =>
 			log.debug "Worker #{worker.id} started"
 

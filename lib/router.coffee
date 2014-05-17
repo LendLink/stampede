@@ -39,12 +39,6 @@ class routeClass
 			if err? then return callback err
 			@routeBuildParams apiReq, callback
 
-	get: (req) ->
-		@req.notFound()
-
-	post: (req) ->
-		@req.notFound()
-
 	getUrl: ->
 		if stampede._.isArray @url
 			@url.join ','
@@ -57,8 +51,6 @@ class routeClass
 		
 		(url.split /\// for url in u)
 
-	error: (apiReq, err, cb) ->
-		cb { error: err }
 
 
 class routeMatcher
@@ -255,6 +247,9 @@ class module.exports
 
 	routes:				undefined
 
+	dump: ->
+		@routes.dump()
+
 	constructor: ->
 		@routes = new routeMatcher()
 
@@ -282,4 +277,5 @@ class module.exports
 				@routes.addRouteSpec routeSpec, r
 
 		@
+
 
