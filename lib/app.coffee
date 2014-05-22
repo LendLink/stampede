@@ -89,9 +89,17 @@ class module.exports #extends stampede.events
 						log.critical "No action specified (no tasks, argument#{if commander.args.length is 1 then ' is' else 's are'} '#{commander.args.join(' ')}')"
 				else if cluster.isWorker
 					serviceName = process.env[forkEnvVar]
-					@startService serviceName
+					process.nextTick =>
+						@workerStart (err) =>
+							if err?
+								log.critical "Error starting worker: #{err}"
+								cluster.worker.disconnect()
+							else
+								@startService serviceName
+						, serviceName
 
-
+	workerStart: (callback) ->
+		process.nextTick => callback()
 
 
 	## Base directory - set the base directory from which relative files will be retrieved

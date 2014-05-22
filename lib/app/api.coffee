@@ -30,12 +30,14 @@ class apiRequest
 	expressNext:			undefined
 	responseSent:			false
 	pgDbList:				undefined
+	pgNamed:				undefined
 	url:					''
 
 	constructor: (p) ->
 		@parentApi = p
 		@routeVars = {}
 		@pgDbList = []
+		@pgNamed = {}
 		@params = {}
 
 	setExpress: (@isExpress = false, @expressReq, @expressRes, @expressNext) -> @
@@ -87,7 +89,19 @@ class apiRequest
 
 		stampede.dba.connect db, (err, dbh) =>
 			@pgDbList.push dbh unless err?
+			@firstSetPgConnection dbName, dbh
 			process.nextTick => callback err, dbh
+
+	firstSetPgConnection: (dbName, dbh) ->
+		unless @pgNamed[dbName]? then @pgNamed[dbName] = dbh
+		@
+
+	setPgConnection: (dbName, dbh) ->
+		@pgNamed[dbName] = dbh
+		@
+
+	getPgConnection: (dbName) -> @pgNamed[dbName]
+	getPostgresDbh: (dbName) -> @pgNamed[dbName]
 
 	finish: ->
 		for dbh in @pgDbList when dbh?
@@ -195,7 +209,7 @@ class module.exports extends service
 				else
 					log.debug "Params processed"
 					# We have everything we need to generate our reponse, first let's see if we have a simple function to call
-					if stampede._.isFunction match.route[method]?
+					if stampede._.isFunction match.route[method]
 						log.debug "Calling handler function"
 						match.route[method] apiReq, (response) =>
 							apiReq.send response

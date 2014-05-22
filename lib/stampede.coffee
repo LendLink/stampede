@@ -19,6 +19,7 @@ exports.app = require './app'
 exports.dbService = require './dbService'
 exports.router = require './router'
 exports.route = exports.router.route
+exports.paramDefinition = require './paramDefinition'
 
 exports._ = exports.lodash = require 'lodash'
 exports.mocha = require 'mocha'
