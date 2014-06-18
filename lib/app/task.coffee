@@ -11,6 +11,8 @@ class module.exports
 			stampede.log.debug "Arguments: #{args.join(', ')}"
 		done('Task action not defined.')
 
+	getApp: -> @parentApp
+
 	run: (args, done) ->
 		done ?= () ->
 

@@ -82,14 +82,11 @@ class apiRequest
 	getApp: -> @parentApi.getApp()
 
 	connectPostgres: (dbName, callback) ->
-		db = @parentApi.getApp().getPostgres(dbName)
+		db = @parentApi.getApp().connectPostgres dbName, => 
+			unless err?
+				@pgDbList.push dbh
+				@firstSetPgConnection dbName, dbh
 
-		# Did we find out database definition?
-		return process.nextTick(=> callback("Database connection '#{dbName}' is not defined.")) unless db?
-
-		stampede.dba.connect db, (err, dbh) =>
-			@pgDbList.push dbh unless err?
-			@firstSetPgConnection dbName, dbh
 			process.nextTick => callback err, dbh
 
 	firstSetPgConnection: (dbName, dbh) ->
@@ -144,8 +141,8 @@ class module.exports extends service
 
 	name:					'Unnamed API Service'		# For reporting and logging we can name our service
 
-	constructor: (app, config) ->
-		super app, config
+	constructor: (app, config, bootConfig) ->
+		super app, config, bootConfig
 		@router = new stampede.router()
 		@handlers = {}
 

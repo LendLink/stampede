@@ -44,6 +44,7 @@ class module.exports #extends stampede.events
 	@service:			require './app/service'
 	@api:				require './app/api'
 	@task:				require './app/task'
+	@dbService:			require './app/dbService'
 
 	# Constructor for instances
 	constructor: (baseDir) ->
@@ -205,6 +206,17 @@ class module.exports #extends stampede.events
 
 	getPostgres: (dbName) -> @environment.postgres?[dbName]
 
+	connectPostgres: (dbName, callback) ->
+		db = @getPostgres(dbName)
+
+		# Did we find out database definition?
+		return process.nextTick(=> callback("Database connection '#{dbName}' is not defined.")) unless db?
+
+		stampede.dba.connect db, (err, dbh) =>
+			callback err, dbh
+
+
+
 	# Force the loading of a file via require
 	forceRequireObject: (fn) ->
 		if require.cache[fn]?
@@ -281,7 +293,7 @@ class module.exports #extends stampede.events
 
 		serviceLib = require @getBaseDirectory service.path
 		log.debug "Loaded service #{name}"
-		@workerService = new serviceLib(@, @config)
+		@workerService = new serviceLib(@, @config, {name: name, settings: service})
 		log.info "Service #{@workerService.name} initialised, starting."
 		@workerService.start()
 
@@ -298,8 +310,10 @@ class module.exports #extends stampede.events
 		task.run commander.args, (err) =>
 			if err?
 				log.error "Error executing task #{name}: #{err}"
+				process.exit(1)
 			else
 				log.info "Task #{name} successfully completed running"
+				process.exit(0)
 
 
 

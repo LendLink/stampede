@@ -41,6 +41,7 @@ class dbConnection extends events.EventEmitter
 
 			if @pgDisconnect? then @pgDisconnect()
 			@pgDbh = undefined
+			@pgDisconnect = undefined
 			if @timer? then clearTimeout @timer
 
 		@on 'reconnect', =>

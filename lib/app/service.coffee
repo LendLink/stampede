@@ -8,11 +8,21 @@ class module.exports extends events
 	parentApp:				undefined
 	cluster:				false
 	config:					undefined
+	bootConfig:				undefined
+
 	name:					'Unnamed service'
 
-	constructor: (app, config) ->
+	constructor: (app, config, bootConfig) ->
 		@parentApp = app
 		@config = config
+		@bootConfig = bootConfig ? {}
+		@pgDbList = []
+
+		@bootConfig.name ?= 'unknown'
+		@bootConfig.settings ?= {}
+
+		if config.service? and config.service[@bootConfig.name]?
+			@bootConfig.settings = stampede._.defaults config.service[@bootConfig.name], @bootConfig.settings
 
 	preStart: (done) ->
 		process.nextTick => done()
@@ -27,12 +37,16 @@ class module.exports extends events
 	## Accessors
 	getConfig: -> @config
 	getApp: -> @parentApp
+	getSettings: (k) -> if k? then @bootConfig.settings[k] else @bootConfig.settings
 
 	## Utility functions
 
 	# Merge our configuration with a local configuration source
 	mergeConfig: (fn) ->
+		console.log "mergeConfig called"
 		@
 
 	filepath: (path) ->
 		@parentApp.getBaseDirectory path
+
+
