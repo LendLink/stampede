@@ -84,21 +84,29 @@ class exports.connection
 	pgDone:		undefined
 	cacheObj:	undefined
 	queryLog:	undefined
+	name:		undefined
+	conString:	undefined
 
 	@connect: (conString, callback, cache) ->
 		pg.connect conString, (err, client, done) ->
 			if err? then return callback err
 
-			dbh = new exports.connection(client, done, cache)
+			dbh = new exports.connection(client, done, cache, conString)
 			callback undefined, dbh
 
-	constructor: (dbh, done, cache) ->
+	constructor: (dbh, done, cache, @conString) ->
 		if cache?
 			@cacheObj = cache
 		else
 			@cacheObj = new exports.cache()
 		@clearLog()
 		@connect(dbh, done)
+
+	setName: (@name) -> @
+	getName: -> @name
+
+	clone: (callback, cache) ->
+		exports.connection.connect @conString, callback, (cache ? @cacheObj)
 
 	handle: -> @pgDbh
 

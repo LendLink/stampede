@@ -31,8 +31,8 @@ class module.exports extends events
 	start: (done) ->
 		@preStart (err) =>
 			if err? then log.critical "Failed to pre-start service #{@name}: #{err}"
-			if done? then process.nextTick => done()
-			@
+			if done? then process.nextTick => done(err)
+		@
 
 	## Accessors
 	getConfig: -> @config
