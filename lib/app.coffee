@@ -204,6 +204,17 @@ class module.exports #extends stampede.events
 
 	getEnvironment: -> @environment
 
+	getRedis: (dbName) -> @environment.redis?[dbName]
+
+	connectRedis: (dbName) ->
+		db = @getRedis(dbName)
+
+		if db?
+			stampede.redis.createClient(db.port, db.host, db.opt ? db.options)
+		else
+			undefined
+
+
 	getPostgres: (dbName) -> @environment.postgres?[dbName]
 
 	connectPostgres: (dbName, callback) ->

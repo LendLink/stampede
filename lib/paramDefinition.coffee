@@ -76,7 +76,7 @@ class validatorInteger extends paramDefinition
 	check: (val, cb) ->
 		if @min? and val < @min then return cb "Value less than minimum of #{@min}"
 		if @max? and val > @max then return cb "Value greater than maximum of #{@max}"
-		cb()
+		cb undefined, val
 
 paramDefinition.integer = -> new validatorInteger()
 
@@ -93,6 +93,17 @@ class validatorString extends paramDefinition
 	check: (val, cb) ->
 		if @minLength and val.length < @minLength then return cb "Length must be greater than #{@minLength}"
 		if @maxLength and val.length > @maxLength then return cb "Length must be less than #{@maxLength}"
-		cb()
+		cb undefined, val
 
 paramDefinition.string = -> new validatorString()
+
+
+class validatorBoolean extends paramDefinition
+	check: (val, cb) ->
+		if val is true or val is 't' or val is 'true'
+			return cb undefined, true
+		if val is false or val is 'f' or val is 'false'
+			return cb undefined, false
+		cb "Must be boolean true or false"
+
+paramDefinition.boolean = -> new validatorBoolean()

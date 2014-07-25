@@ -12,11 +12,11 @@ class routeClass
 		stampede.async.each Object.keys(@routeParams), (name, cb) =>
 			p = @routeParams[name]
 			val = apiReq.route name
-			p.doCheck "route[#{name}]", val, apiReq, (checkErr) =>
+			p.doCheck "route[#{name}]", val, apiReq, (checkErr, newVal) =>
 				if checkErr?
 					cb checkErr
 				else
-					apiReq.setParam p.getParamName(name), val
+					apiReq.setParam p.getParamName(name), newVal
 					cb()
 		, (err) =>
 			if err? then return callback err
@@ -29,15 +29,18 @@ class routeClass
 		stampede.async.each Object.keys(@getParams), (name, cb) =>
 			p = @getParams[name]
 			val = apiReq.queryArg name
-			p.doCheck "get[#{name}]", val, apiReq, (checkErr) =>
+			p.doCheck "get[#{name}]", val, apiReq, (checkErr, newVal) =>
 				if checkErr?
 					cb checkErr
 				else
-					apiReq.setParam p.getParamName(name), val
+					apiReq.setParam p.getParamName(name), newVal
 					cb()
 		, (err) =>
 			if err? then return callback err
 			@routeBuildParams apiReq, callback
+
+	socketBuildParams: (apiReq, callback) ->
+		@getBuildParams apiReq, callback
 
 	getUrl: ->
 		if stampede._.isArray @url

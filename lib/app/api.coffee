@@ -21,6 +21,7 @@ service = require './service'
 class apiRequest
 	parentApi:				undefined
 	isExpress:				false
+	isSocket:				false
 	isInternal:				false
 	params:					undefined
 	routeVars:				undefined
@@ -28,6 +29,9 @@ class apiRequest
 	expressReq:				undefined
 	expressRes:				undefined
 	expressNext:			undefined
+	socket:					undefined
+	socketReq:				undefined
+	socketCallback:			undefined
 	responseSent:			false
 	pgDbList:				undefined
 	pgNamed:				undefined
@@ -40,7 +44,13 @@ class apiRequest
 		@pgNamed = {}
 		@params = {}
 
-	setExpress: (@isExpress = false, @expressReq, @expressRes, @expressNext) -> @
+	setExpress: (@expressReq, @expressRes, @expressNext) ->
+		@isExpress = false
+		@
+
+	setSocket: (@socket, @socketReq, @socketCallback) ->
+		@isSocket = true
+		@
 	
 	setParams: (@params) -> @
 
@@ -60,18 +70,24 @@ class apiRequest
 	arg: (v) ->
 		if @isExpress is true
 			@expressReq.param[v]
+		else if @isSocket is true
+			@socketReq.param?[v]
 		else
 			undefined
 
 	queryArg: (v) ->
 		if @isExpress is true
 			@expressReq.query[v]
+		else if @isSocket is true
+			@socketReq.query?[v]
 		else
 			undefined
 
 	bodyArg: (v) ->
 		if @isExpress is true
 			@expressReq.body[v]
+		else if @isSocket is true
+			@socketReq.body?[v]
 		else
 			undefined
 
@@ -110,6 +126,9 @@ class apiRequest
 
 		if @isExpress is true
 			@expressRes.json response
+		else if @isSocket is true
+			if @socketCallback?
+				@socketCallback response
 		else
 			console.log "Eh?  Dunno how to send (api.coffee)"
 
@@ -123,6 +142,8 @@ class apiRequest
 		if @isExpress is true
 			@responseSent = true
 			@expressNext()
+		else if @isSocket is true
+			@send { error: "Path not found: '#{@socketReq.path}'", request: @socketReq }
 		else
 			console.log "Unhandled Not Found within apiRequest."
 
@@ -139,6 +160,9 @@ class module.exports extends service
 	router:					undefined
 	handlers:				undefined
 
+	redisDbName:			'redis'
+	redisSessionPrefix:		'session:'
+
 	name:					'Unnamed API Service'		# For reporting and logging we can name our service
 
 	constructor: (app, config, bootConfig) ->
@@ -152,7 +176,8 @@ class module.exports extends service
 		@socketIoLogger = new sioLogger(log)
 		@expressApp = express()
 		@httpServer = http.createServer @expressApp
-		@socketIo = io.listen @httpServer, { logger: @socketIoLogger }
+
+		@socketIo = io.listen @httpServer, { logger: @socketIoLogger, origins: @getSettings('origins') }
 
 		# Set up our express middleware
 		@expressApp.use express.compress()
@@ -164,10 +189,29 @@ class module.exports extends service
 
 		# Fire up the server on the appropriate port
 		port = @config[@name]?.port ? 8080
+		stampede.log.info "Starting API service #{@name} on port #{port}"
 		@httpServer.listen port
 
 		@socketIo.sockets.on 'connection', (socket) =>
-			socket.set 'controllerObject', @
+			log.debug "New socket connection established"
+			socket.stampede = {}
+			socket.stampede.controllerObject = @
+
+			socket.on 'setSession', (sessionId, callback) =>
+				socket.stampede.setSessionId = sessionId
+				@socketSetSession socket, sessionId, callback
+
+			socket.on 'request', (req, callback) =>
+				unless callback?
+					return socket.emit 'error', { error: 'Callback function not specified', request: req }
+
+				unless req.path?
+					return callback { error: 'path not specified' }
+
+				@socketRequest socket, req, callback
+
+			if @onSocketConnect?
+				@onSocketConnect(con)
 
 		# We're all done
 		log.info "#{@name} started on port #{port}."
@@ -188,7 +232,7 @@ class module.exports extends service
 
 		# We have a match, let's build up the internal request object
 		apiReq = new apiRequest(@)
-		apiReq.setExpress true, req, res, next
+		apiReq.setExpress req, res, next
 			.setRouteVars match.vars
 			.setUrl req.path
 
@@ -199,7 +243,7 @@ class module.exports extends service
 			log.debug "Handler for method #{method} was found"
 			# Build up our params objects
 			match.route[method+'BuildParams'] apiReq, (err) =>
-				# If there's an error building our parameters then send the error respond
+				# If there's an error building our parameters then send the error response
 				if err?
 					log.debug "Error building params"
 					apiReq.sendError err
@@ -217,6 +261,55 @@ class module.exports extends service
 		else
 			log.debug "Handler for method #{method} was not found"
 			next()
+
+	socketRequest: (socket, req, callback) ->
+		# Does the request match anything in our router?
+		match = @router.find req.path
+
+		# If we don't have a match then throw that error
+		unless match?
+			log.debug "Route for url (socket) '#{req.path}' not found."
+			return callback { error: "Path not found: '#{req.path}'", request: req }
+
+		log.debug "Route for url '#{req.path}' was found."
+
+		# Build the internal request object
+		apiReq = new apiRequest(@)
+		apiReq.setSocket socket, req, callback
+			.setRouteVars match.vars
+			.setUrl req.path
+
+		# Work out which HTTP method to use in our request
+		method = req.method
+		unless method?
+			if match.route.socket? then method = 'socket'
+			else method = 'get'
+
+		# Do we have a matching definition for our method type?
+		if match.route[method]?
+			log.debug "Handler for method #{method} was found"
+
+			#Build up our params objects
+			match.route[method+'BuildParams'] apiReq, (err) =>
+				# If there's an error building our parameters then send the error response
+				if err?
+					log.debug "Error building params"
+					apiReq.sendError err
+				else
+					log.debug "Params processed"
+
+					# Is the method a simple function call?
+					if stampede._.isFunction match.route[method]
+						log.debug "Calling handler function"
+						match.route[method] apiReq, (response) =>
+							apiReq.send response
+					else
+						# Auto DB request it is then
+						log.debug "Auto DB request found"
+						@autoRequestDb match.route[method], apiReq
+		else
+			callback { error: "Handler for method #{method} was not found", request: req }
+
 
 	autoRequestDb: (route, apiReq) ->
 		if route.db?
@@ -242,7 +335,8 @@ class module.exports extends service
 				else
 					if route.fetchOne? and res.rows.length > 1
 						apiReq.sendError "fetchOne returned more than one result"
-					else if res.rows.length is 0
+					else if route.fetchOne? and res.rows.length is 0
+						log.debug "AutoSQL fetchOne returned zero results, sending notFound error."
 						apiReq.notFound()
 					else
 						# Pass our results on to the filter
@@ -305,3 +399,34 @@ class module.exports extends service
 
 			process.nextTick => done()
 		@
+
+
+	socketSetSession: (socket, sId, callback) ->
+		unless stampede._.isString sId
+			callback { status: 'error', error: 'Specified session Id is not a string', sessionFound: false }
+			console.log "Session ID is not a string: #{sId}"
+			return socket.emit 'server error', { error: 'Specified session Id is not a string', detail: sId }
+
+		rc = @getApp().connectRedis @redisDbName
+		rc.get @redisSessionPrefix + sId, (err, ses) =>
+			if err?
+				callback { status: 'error', error: err, sessionFound: false }
+				console.log "Session lookup error: #{err}"
+				return socket.emit 'server error', { error: 'Error retrieving session details', detail: err }
+
+			unless ses?
+				console.log "Session not found: #{sId}"
+				callback { status: 'notFound', sessionFound: false }
+				return socket.emit 'server error', { error: 'Session not found', detail: sId }
+
+			ses = JSON.parse ses
+			socket.stampede.session = ses
+
+			console.log "Session found"
+			console.log ses
+
+			callback { status: 'ok', sessionFound: true }
+
+			if @onSession?
+				@onSession socket
+
