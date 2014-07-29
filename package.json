@@ -7,7 +7,7 @@
     "name": "Chris Mellish"
   },
   "repository": "https://github.com/LendLink/stampede.git",
-  "version": "0.1.18",
+  "version": "0.1.19",
   "readmeFilename": "README.md",
   "dependencies": {
     "mocha": "1.x",
