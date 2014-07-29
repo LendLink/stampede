@@ -36,7 +36,7 @@ module.exports = class paramDefinition
 
 		# Check for nulls
 		unless val?
-			if @nullable then return cb()
+			if @nullable then return cb undefined, val
 			return cb("#{paramName}: is a required paramter")
 
 		# Check against our regex
@@ -47,11 +47,11 @@ module.exports = class paramDefinition
 		if @check?
 			@check val, (err) =>
 				if err? then cb "#{paramName}: #{err}"
-				else cb()
+				else cb undefined, val
 			, apiReq
 		else
 			# No more checks so we can call our callback
-			cb()
+			cb undefined, val
 
 
 

@@ -16,11 +16,12 @@ class routeClass
 				if checkErr?
 					cb checkErr
 				else
+					log.debug "Param #{p.getParamName(name)} set to '#{newVal}' (originally #{val})"
 					apiReq.setParam p.getParamName(name), newVal
 					cb()
 		, (err) =>
 			if err? then return callback err
-			process.nextTick => callback()
+			callback()
 
 	getBuildParams: (apiReq, callback) ->
 		unless @getParams
@@ -33,6 +34,7 @@ class routeClass
 				if checkErr?
 					cb checkErr
 				else
+					log.debug "Param #{p.getParamName(name)} set to '#{newVal}' (originally #{val})"
 					apiReq.setParam p.getParamName(name), newVal
 					cb()
 		, (err) =>
@@ -53,6 +55,9 @@ class routeClass
 		u = [u] unless stampede._.isArray u
 		
 		(url.split /\// for url in u)
+
+	getSessionConfig: ->
+		@session
 
 
 

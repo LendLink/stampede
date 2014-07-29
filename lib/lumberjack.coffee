@@ -21,7 +21,9 @@ module.exports = class Lumberjack
 		critical:	4
 
 	defaultFormat: '%d %t [%L] - %m'
-	defaultMinLevel: 2
+	currentMinLevel: 2
+
+	isDebug: -> @currentMinLevel is 0
 
 	constructor: () ->
 		@toConsole 'info'
@@ -32,16 +34,20 @@ module.exports = class Lumberjack
 	toConsole: (minLevel, overrideFormat) ->
 		@actions = []
 		@chainConsole minLevel, overrideFormat
+		@currentMinLevel = minLevel
 
 	chainConsole: (minLevel, overrideFormat) ->
 		@actions.push {console: true, minLevel: @levelToValue(minLevel, 'info'), format: overrideFormat}
+		@currentMinLevel = minLevel if minLevel < @currentMinLevel
 
 	toFile: (minLevel, overrideFormat) ->
 		@actions = []
 		@chainFile minLevel, overrideFormat
+		@currentMinLevel = minLevel
 
 	chainFile: (fileName, minLevel, overrideFormat) ->
 		@actions.push {file: fileName, minLevel: @levelToValue(minLevel, 'info'), format: overrideFormat}
+		@currentMinLevel = minLevel if minLevel < @currentMinLevel
 
 	formatMessage: (format, level, msg) ->
 		format.replace /%[dtlLm]/g, (code) ->

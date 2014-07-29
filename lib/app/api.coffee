@@ -17,136 +17,7 @@ log = stampede.log
 sioLogger = require './sioLogger'
 service = require './service'
 
-
-class apiRequest
-	parentApi:				undefined
-	isExpress:				false
-	isSocket:				false
-	isInternal:				false
-	params:					undefined
-	routeVars:				undefined
-	args:					undefined
-	expressReq:				undefined
-	expressRes:				undefined
-	expressNext:			undefined
-	socket:					undefined
-	socketReq:				undefined
-	socketCallback:			undefined
-	responseSent:			false
-	pgDbList:				undefined
-	pgNamed:				undefined
-	url:					''
-
-	constructor: (p) ->
-		@parentApi = p
-		@routeVars = {}
-		@pgDbList = []
-		@pgNamed = {}
-		@params = {}
-
-	setExpress: (@expressReq, @expressRes, @expressNext) ->
-		@isExpress = false
-		@
-
-	setSocket: (@socket, @socketReq, @socketCallback) ->
-		@isSocket = true
-		@
-	
-	setParams: (@params) -> @
-
-	param: (v) -> @params[v]
-
-	setParam: (k, v) ->
-		@params[k] = v
-		@
-
-	route: (v) -> @routeVars[v]
-
-	setRouteVars: (@routeVars) -> @
-
-	setUrl: (@url) -> @
-	getUrl: -> @url
-
-	arg: (v) ->
-		if @isExpress is true
-			@expressReq.param[v]
-		else if @isSocket is true
-			@socketReq.param?[v]
-		else
-			undefined
-
-	queryArg: (v) ->
-		if @isExpress is true
-			@expressReq.query[v]
-		else if @isSocket is true
-			@socketReq.query?[v]
-		else
-			undefined
-
-	bodyArg: (v) ->
-		if @isExpress is true
-			@expressReq.body[v]
-		else if @isSocket is true
-			@socketReq.body?[v]
-		else
-			undefined
-
-	getService: -> @parentApi
-
-	getConfig: -> @parentApi.getConfig()
-
-	getApp: -> @parentApi.getApp()
-
-	connectPostgres: (dbName, callback) ->
-		db = @parentApi.getApp().connectPostgres dbName, => 
-			unless err?
-				@pgDbList.push dbh
-				@firstSetPgConnection dbName, dbh
-
-			process.nextTick => callback err, dbh
-
-	firstSetPgConnection: (dbName, dbh) ->
-		unless @pgNamed[dbName]? then @pgNamed[dbName] = dbh
-		@
-
-	setPgConnection: (dbName, dbh) ->
-		@pgNamed[dbName] = dbh
-		@
-
-	getPgConnection: (dbName) -> @pgNamed[dbName]
-	getPostgresDbh: (dbName) -> @pgNamed[dbName]
-
-	finish: ->
-		for dbh in @pgDbList when dbh?
-			dbh.disconnect()
-
-	send: (response = {}, doNotFinish = false) ->
-		# Tidy up and close our connections
-		@finish() unless doNotFinish is true
-
-		if @isExpress is true
-			@expressRes.json response
-		else if @isSocket is true
-			if @socketCallback?
-				@socketCallback response
-		else
-			console.log "Eh?  Dunno how to send (api.coffee)"
-
-	sendError: (error, detail = undefined, doNotFinish = false) ->
-		errObj = { error: error, url: @url }
-		if detail? then errObj.detail = detail
-
-		@send errObj, doNotFinish
-
-	notFound: ->
-		if @isExpress is true
-			@responseSent = true
-			@expressNext()
-		else if @isSocket is true
-			@send { error: "Path not found: '#{@socketReq.path}'", request: @socketReq }
-		else
-			console.log "Unhandled Not Found within apiRequest."
-
+apiRequest = require './apiRequest'
 
 class module.exports extends service
 	@apiRequest:			apiRequest
@@ -197,6 +68,12 @@ class module.exports extends service
 			socket.stampede = {}
 			socket.stampede.controllerObject = @
 
+			# Register any socket event listeners that have been defined
+			if @socketCallbacks?
+				for fnName, fn in @socketCallbacks
+					socket.on fnName, fn
+
+
 			socket.on 'setSession', (sessionId, callback) =>
 				socket.stampede.setSessionId = sessionId
 				@socketSetSession socket, sessionId, callback
@@ -237,27 +114,12 @@ class module.exports extends service
 			.setUrl req.path
 
 		method = req.method.toLowerCase()
+		apiReq.setMethod method
 
 		# Do we have a matching definition for our method type?
 		if match.route[method]?
 			log.debug "Handler for method #{method} was found"
-			# Build up our params objects
-			match.route[method+'BuildParams'] apiReq, (err) =>
-				# If there's an error building our parameters then send the error response
-				if err?
-					log.debug "Error building params"
-					apiReq.sendError err
-				else
-					log.debug "Params processed"
-					# We have everything we need to generate our reponse, first let's see if we have a simple function to call
-					if stampede._.isFunction match.route[method]
-						log.debug "Calling handler function"
-						match.route[method] apiReq, (response) =>
-							apiReq.send response
-					else
-						# Nope, okay let's go through our checks for the clever bits of automated functionality
-						log.debug "Auto DB request found"
-						@autoRequestDb match.route[method], apiReq
+			@handleRequest match, apiReq
 		else
 			log.debug "Handler for method #{method} was not found"
 			next()
@@ -285,30 +147,53 @@ class module.exports extends service
 			if match.route.socket? then method = 'socket'
 			else method = 'get'
 
+		apiReq.setMethod method
+
 		# Do we have a matching definition for our method type?
 		if match.route[method]?
 			log.debug "Handler for method #{method} was found"
 
-			#Build up our params objects
-			match.route[method+'BuildParams'] apiReq, (err) =>
-				# If there's an error building our parameters then send the error response
-				if err?
-					log.debug "Error building params"
-					apiReq.sendError err
-				else
-					log.debug "Params processed"
-
-					# Is the method a simple function call?
-					if stampede._.isFunction match.route[method]
-						log.debug "Calling handler function"
-						match.route[method] apiReq, (response) =>
-							apiReq.send response
-					else
-						# Auto DB request it is then
-						log.debug "Auto DB request found"
-						@autoRequestDb match.route[method], apiReq
+			@handleRequest match, apiReq
 		else
 			callback { error: "Handler for method #{method} was not found", request: req }
+
+
+	handleRequest: (match, apiReq) ->
+		method = apiReq.getMethod()
+		
+		# Build up our params objects
+		match.route[method+'BuildParams'] apiReq, (err) =>
+			# If there's an error building our parameters then send the error response
+			if err?
+				log.debug "Error building params"
+				apiReq.sendError err
+			else
+				log.debug "Params processed"
+				if match.route.getSessionConfig()
+					@checkSession match, apiReq
+				else
+					@executeRequest match, apiReq
+
+	checkSession: (match, apiReq) ->
+		console.log "*** WOULD CHECK THE SESSION ***"
+		if apiReq.isSocket
+
+		else
+			# No authentication mechanisms yet
+			@executeRequest match, apiReq
+
+	executeRequest: (match, apiReq) ->
+		method = apiReq.getMethod()
+
+		# We have everything we need to generate our reponse, first let's see if we have a simple function to call
+		if stampede._.isFunction match.route[method]
+			log.debug "Calling handler function"
+			match.route[method] apiReq, (response) =>
+				apiReq.send response
+		else
+			# Nope, okay let's go through our checks for the clever bits of automated functionality
+			log.debug "Auto DB request found"
+			@autoRequestDb match.route[method], apiReq
 
 
 	autoRequestDb: (route, apiReq) ->
@@ -318,6 +203,8 @@ class module.exports extends service
 					apiReq.sendError err
 				else
 					@autoRequestRunQuery route, apiReq, dbh
+		else if route.fn?
+			route.fn apiReq
 		else
 			apiReq.sendError "No DB connection specified"
 
@@ -328,6 +215,12 @@ class module.exports extends service
 			# Map any bind variables to our validated parameters
 			bind = (apiReq.param(k) for k in (route.bind ? []))
 
+			# Log what we're executing
+			log.debug "Running query: #{route.fetchAll ? route.fetchOne}"
+			bindCount = 0
+			for b in bind
+				log.debug "Binding value $#{++bindCount}: #{b}"
+
 			# Execute the query
 			dbh.query (route.fetchAll ? route.fetchOne), bind, (err, res) =>
 				if err?
@@ -337,12 +230,14 @@ class module.exports extends service
 						apiReq.sendError "fetchOne returned more than one result"
 					else if route.fetchOne? and res.rows.length is 0
 						log.debug "AutoSQL fetchOne returned zero results, sending notFound error."
-						apiReq.notFound()
+						apiReq.send { error: "not found" }
 					else
 						# Pass our results on to the filter
 						@autoRequestFilter route, apiReq, dbh, res.rows, route.fetchOne?
+		else if route.send?
+			route.send apiReq
 		else
-			apiReq.error "Either fetchAll or fetchOne must be defined"
+			apiReq.error "Either fetchAll or fetchOne or send must be defined"
 
 	autoRequestFilter: (route, apiReq, dbh, res, fetchOne) ->
 		if route.filter?
@@ -409,6 +304,8 @@ class module.exports extends service
 
 		rc = @getApp().connectRedis @redisDbName
 		rc.get @redisSessionPrefix + sId, (err, ses) =>
+			rc.quit()
+
 			if err?
 				callback { status: 'error', error: err, sessionFound: false }
 				console.log "Session lookup error: #{err}"
@@ -419,8 +316,12 @@ class module.exports extends service
 				callback { status: 'notFound', sessionFound: false }
 				return socket.emit 'server error', { error: 'Session not found', detail: sId }
 
-			ses = JSON.parse ses
-			socket.stampede.session = ses
+			sesData = JSON.parse ses
+
+			session = new (apiRequest.sessionHandler)
+			session.setFromPhp ses
+
+			socket.stampede.session = session
 
 			console.log "Session found"
 			console.log ses
