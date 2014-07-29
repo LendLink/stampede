@@ -177,6 +177,8 @@ class module.exports extends service
 	checkSession: (match, apiReq) ->
 		console.log "*** WOULD CHECK THE SESSION ***"
 		if apiReq.isSocket
+			# No authentication mechanisms yet
+			@executeRequest match, apiReq
 
 		else
 			# No authentication mechanisms yet
