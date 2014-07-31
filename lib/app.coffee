@@ -29,6 +29,7 @@ log = stampede.log
 forkEnvVar = '__STAMPEDE_APP_SERVICE__'
 
 
+
 class module.exports #extends stampede.events
 	version:			'0.0.1'
 	name:				'<unknown>'

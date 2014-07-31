@@ -20,6 +20,7 @@ exports.dbService = require './dbService'
 exports.router = require './router'
 exports.route = exports.router.route
 exports.paramDefinition = require './paramDefinition'
+exports.autoTidy = require './autoTidy'
 
 exports._ = exports.lodash = require 'lodash'
 exports.mocha = require 'mocha'
@@ -28,3 +29,5 @@ exports.path = require 'path'
 exports.async = require 'async'
 exports.moment = require 'moment'
 exports.redis = require 'redis'
+exports.socketIo = require 'socket.io'
+exports.socketIoClient = require 'socket.io-client'

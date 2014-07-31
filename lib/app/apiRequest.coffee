@@ -9,6 +9,7 @@ log = stampede.log
 
 class sessionHandler
 	data:					undefined
+	loggedIn:				undefined
 
 	constructor: ->
 		@data = {}
@@ -23,6 +24,26 @@ class sessionHandler
 
 	setFromPhp: (ses) ->
 		@set 'userId', ses.id
+		@set 'roles', ses.roles ? []
+		
+		if ses.id?
+			@setLoggedIn()
+
+	setLoggedIn: (@loggedIn = 'logged in') -> @
+	getLoggedIn: -> @loggedIn
+	isLoggedIn: -> if @loggedIn? then true else false
+	logout: ->
+		@loggedIn = undefined
+		@
+
+	dump: ->
+		console.log ' '
+		console.log 'Session details:'
+		console.log "- logged in: #{@loggedIn}"
+		console.log '- data:'
+		for k, v of @data
+			console.log "    #{k} = '#{v}'"
+		console.log ' '
 
 class module.exports
 	@sessionHandler:		sessionHandler
@@ -47,6 +68,22 @@ class module.exports
 	method:					undefined
 	session:				undefined
 
+	autoTidyBucket:			undefined
+	streamingTidyBucket:	undefined
+
+	isStreaming:			false
+
+	dump: ->
+		console.log " "
+		console.log "apiRequest Object"
+		console.log "---------- ------"
+		console.log " "
+		console.log "URL:			#{@url}"
+		console.log "Params:"
+		for k,v of @params
+			console.log "	'#{k}' = '#{v}'"
+		console.log " "
+
 	constructor: (p, session) ->
 		@parentApi = p
 		@routeVars = {}
@@ -54,6 +91,8 @@ class module.exports
 		@pgNamed = {}
 		@params = {}
 		@session = session ? new sessionHandler()
+		@autoTidyBucket = new stampede.autoTidy.bucket
+		@streamingTidyBucket = new stampede.autoTidy.bucket
 
 	setExpress: (@expressReq, @expressRes, @expressNext) ->
 		@isExpress = true
@@ -64,10 +103,31 @@ class module.exports
 			@session = @socket.stampede.session
 		@isSocket = true
 		@
+
+	setStreaming: (set) ->
+		if set is true
+			if @isSocket
+				@isStreaming = true
+			else
+				log.error "Trying to set streaming to true on a non-socket request.  Ignoring."
+		else
+			if @isStreaming
+				log.error "Trying to set a streaming connection to not stream.  Ignoring."
+
+	canSend: ->
+		if @isExpress
+			true
+		else if @isSocket and @socketCallback
+			true
+		else
+			false
 	
 	newSession: ->
 		@session = new sessionHandler()
 		@session
+
+	getSession: -> @session
+	setSession: (@session) -> @
 
 	setParams: (@params) -> @
 
@@ -87,7 +147,10 @@ class module.exports
 	setMethod: (@method) -> @
 	getMethod: -> @method
 
-	arg: (v) ->
+	arg: (k) ->
+		@param(k) ? @queryArg(k) ? @bodyArg(k)
+
+	baseParams: (v) ->
 		if @isExpress is true
 			@expressReq.params[v]
 		else if @isSocket is true
@@ -99,7 +162,7 @@ class module.exports
 		if @isExpress is true
 			@expressReq.query[v]
 		else if @isSocket is true
-			@socketReq.query[v]
+			@socketReq.args?[v]
 		else
 			undefined
 
@@ -137,20 +200,47 @@ class module.exports
 	getPostgresDbh: (dbName) -> @pgNamed[dbName]
 
 	finish: ->
+		log.debug "Auto-closing DB connections"
 		for dbh in @pgDbList when dbh?
 			dbh.disconnect()
 
 	send: (response = {}, doNotFinish = false) ->
 		# Tidy up and close our connections
 		@finish() unless doNotFinish is true
+		@canSend = false
 
 		if @isExpress is true
 			@expressRes.json response
 		else if @isSocket is true
 			if @socketCallback?
+				# console.log "sending..."
+				# console.log response
 				@socketCallback response
+				@socketCallback = undefined
 		else
 			log.error "apiRequest - Eh?  Dunno how to send"
+
+		@
+
+	stream: (channel, msg, callback, autoFinish = false) ->
+		unless @isStreaming
+			@setStreaming(true)
+
+		unless @isStreaming
+			log.error "Trying to stream to a non-streaming connection."
+			return @
+
+		if @isSocket
+			log.debug "Sending stream message to #{channel}"
+			# console.log msg
+			@socket.emit channel, msg, callback
+		else
+			log.error "Do not how to stream to this connection."
+
+		if autoFinish
+			@finish()
+
+		@
 
 	sendError: (error, detail = undefined, doNotFinish = false) ->
 		errObj = { error: error, url: @url }

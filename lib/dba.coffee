@@ -13,6 +13,7 @@ sha1 = require 'sha1'
 async = require 'async'
 pg = require 'pg'
 crypto = require 'crypto'
+stampede = require './stampede'
 
 
 
@@ -90,6 +91,7 @@ class exports.connection
 	@connect: (conString, callback, cache) ->
 		pg.connect conString, (err, client, done) ->
 			if err? then return callback err
+			unless client? then return callback 'Postgres client unexpectedly undefined on connect'
 
 			dbh = new exports.connection(client, done, cache, conString)
 			callback undefined, dbh
@@ -113,6 +115,10 @@ class exports.connection
 	queries: -> @queryLog
 
 	query: (args...) ->
+		unless @pgDbh
+			stampede.log.error "Querying a non-connected database!"
+			return undefined
+
 		query_start = new moment()
 		handle = @pgDbh.query.apply(@pgDbh, args)
 		handle.on 'end', =>
@@ -135,10 +141,7 @@ class exports.connection
 
 		@
 
-	connect: (dbh, done) ->
-		@pgDbh = dbh
-		@pgDone = done
-
+	connect: (@pgDbh, @pgDone) -> @
 
 
 

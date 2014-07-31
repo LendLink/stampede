@@ -78,6 +78,13 @@ class module.exports extends service
 				socket.stampede.setSessionId = sessionId
 				@socketSetSession socket, sessionId, callback
 
+			socket.on 'call', (req) =>
+				unless req.path?
+					log.error "Path not specified in request, ignoring"
+					return
+
+				@socketRequest socket, req
+
 			socket.on 'request', (req, callback) =>
 				unless callback?
 					return socket.emit 'error', { error: 'Callback function not specified', request: req }
@@ -149,6 +156,9 @@ class module.exports extends service
 
 		apiReq.setMethod method
 
+		# Work through the config
+		apiReq.setStreaming(match.route.socketOptions.stream ? match.route.options.stream ? false)
+
 		# Do we have a matching definition for our method type?
 		if match.route[method]?
 			log.debug "Handler for method #{method} was found"
@@ -165,24 +175,60 @@ class module.exports extends service
 		match.route[method+'BuildParams'] apiReq, (err) =>
 			# If there's an error building our parameters then send the error response
 			if err?
-				log.debug "Error building params"
-				apiReq.sendError err
+				log.error "Error building params: #{err}"
+				apiReq.sendError { error: err }
 			else
 				log.debug "Params processed"
 				if match.route.getSessionConfig()
 					@checkSession match, apiReq
 				else
-					@executeRequest match, apiReq
+					@preconnectDb match, apiReq
 
 	checkSession: (match, apiReq) ->
-		console.log "*** WOULD CHECK THE SESSION ***"
-		if apiReq.isSocket
-			# No authentication mechanisms yet
-			@executeRequest match, apiReq
+		log.debug "Checking the session credentials"
 
-		else
-			# No authentication mechanisms yet
-			@executeRequest match, apiReq
+		session = apiReq.getSession()
+
+		sessionConfig = match.route.session
+		if sessionConfig.loggedIn?
+			if session.isLoggedIn() is false
+				log.debug "Session is not logged in"
+				return apiReq.send { error : 'Insufficient permissions', detail: 'Session is not logged in' }
+			else
+				log.debug 'Session is correctly logged in'
+
+		if sessionConfig.userIdMatch?
+			if '' + session.get('userId') isnt '' + apiReq.arg(sessionConfig.userIdMatch)
+				log.debug "Session match failed: '#{session.get('userId')}' vs '#{apiReq.arg(sessionConfig.userIdMatch)}'"
+				return apiReq.send { error: 'Insufficient permissions' }
+			else
+				log.debug "Session userIdMatch passed"
+
+
+		# No authentication mechanisms yet
+		@preconnectDb match, apiReq
+
+	preconnectDb: (match, apiReq) ->
+		dbList = if apiReq.isSocket
+			match.route.socketOptions?.connectDb ? match.route.options?.connectDb ? []
+		else if apiReq.isExpress
+			match.route.options?.connectDb ? []
+
+		unless stampede._.isArray dbList
+			dbList = [ dbList ]
+
+		stampede.async.each dbList, (dbName, callback) =>
+			log.debug "Preconnecting to DB #{dbName}"
+			apiReq.connectPostgres dbName, (err, dbh) =>
+				log.debug "Connected to DB '#{dbName}' with response: #{if err? then err else 'connected'}"
+				callback err
+		, (err) =>
+			if err?
+				log.error "Error preconnecting to DB: #{err}"
+				apiReq.sendError err
+			else
+				log.debug "Finished preconnecting to databases"
+				@executeRequest match, apiReq
 
 	executeRequest: (match, apiReq) ->
 		method = apiReq.getMethod()
@@ -301,7 +347,7 @@ class module.exports extends service
 	socketSetSession: (socket, sId, callback) ->
 		unless stampede._.isString sId
 			callback { status: 'error', error: 'Specified session Id is not a string', sessionFound: false }
-			console.log "Session ID is not a string: #{sId}"
+			log.error "Session ID is not a string: #{sId}"
 			return socket.emit 'server error', { error: 'Specified session Id is not a string', detail: sId }
 
 		rc = @getApp().connectRedis @redisDbName
@@ -310,23 +356,20 @@ class module.exports extends service
 
 			if err?
 				callback { status: 'error', error: err, sessionFound: false }
-				console.log "Session lookup error: #{err}"
+				log.error "Session lookup error: #{err}"
 				return socket.emit 'server error', { error: 'Error retrieving session details', detail: err }
 
 			unless ses?
-				console.log "Session not found: #{sId}"
+				log.error "Session not found: #{sId}"
 				callback { status: 'notFound', sessionFound: false }
 				return socket.emit 'server error', { error: 'Session not found', detail: sId }
 
 			sesData = JSON.parse ses
 
 			session = new (apiRequest.sessionHandler)
-			session.setFromPhp ses
+			session.setFromPhp sesData
 
 			socket.stampede.session = session
-
-			console.log "Session found"
-			console.log ses
 
 			callback { status: 'ok', sessionFound: true }
 

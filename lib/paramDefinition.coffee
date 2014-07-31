@@ -4,9 +4,13 @@ Define our validator helper class
 
 ###
 
+stampede = require './stampede'
+
 module.exports = class paramDefinition
 	nullable:		true
 	paramName:		undefined
+	overrideValue:	undefined
+	defaultValue:	undefined
 
 	required: ->
 		@nullable = false
@@ -31,8 +35,11 @@ module.exports = class paramDefinition
 	setParamName: (@paramName) -> @
 	getParamName: (def) -> @paramName ? def
 
+	setValue: (@overrideValue) -> @
+	setDefault: (@defaultValue) -> @
+
 	doCheck: (paramName, val, apiReq, cb) ->
-		val = @parse val
+		val = @parse(@overrideValue ? val ? @defaultValue)
 
 		# Check for nulls
 		unless val?
@@ -45,9 +52,9 @@ module.exports = class paramDefinition
 
 		# Call our check function
 		if @check?
-			@check val, (err) =>
+			@check val, (err, newVal) =>
 				if err? then cb "#{paramName}: #{err}"
-				else cb undefined, val
+				else cb undefined, newVal
 			, apiReq
 		else
 			# No more checks so we can call our callback
@@ -107,3 +114,26 @@ class validatorBoolean extends paramDefinition
 		cb "Must be boolean true or false"
 
 paramDefinition.boolean = -> new validatorBoolean()
+
+
+class validatorJson extends paramDefinition
+	check: (val, cb) ->
+		parsedVal = undefined
+		error = undefined
+
+		try
+			if stampede._.isString val
+				parsedVal = JSON.parse(val)
+			else if stampede._.isObject val
+				parsedVal = val
+			else
+				error = "Invalid JSON object: #{val}"
+		catch e
+			parsedVal = undefined
+			error = e
+
+		cb error, parsedVal
+
+paramDefinition.json = -> new validatorJson()
+
+

@@ -6,35 +6,49 @@ class routeClass
 	url:				''
 
 	routeBuildParams: (apiReq, callback) ->
-		unless @routeParams
-			return process.nextTick => callback()
-
-		stampede.async.each Object.keys(@routeParams), (name, cb) =>
+		stampede.async.each Object.keys(@routeParams ? {}), (name, cb) =>
 			p = @routeParams[name]
 			val = apiReq.route name
 			p.doCheck "route[#{name}]", val, apiReq, (checkErr, newVal) =>
 				if checkErr?
 					cb checkErr
 				else
-					log.debug "Param #{p.getParamName(name)} set to '#{newVal}' (originally #{val})"
+					log.debug "Route param #{p.getParamName(name)} set to '#{newVal}' (originally #{val})"
 					apiReq.setParam p.getParamName(name), newVal
 					cb()
 		, (err) =>
 			if err? then return callback err
-			callback()
 
-	getBuildParams: (apiReq, callback) ->
-		unless @getParams
+			session = apiReq.getSession()
+			paramObj = @session?.params ? @sessionParams ? {}
+			stampede.async.each Object.keys(paramObj), (name, cb) =>
+				p = paramObj[name]
+				val = session.get name
+
+				p.doCheck "session[#{name}]", val, apiReq, (checkErr, newVal) =>
+					if checkErr?
+						cb checkErr
+					else
+						log.debug "Session param #{p.getParamName(name)} set to '#{newVal}' (originally #{val})"
+						apiReq.setParam p.getParamName(name), newVal
+						cb()
+			, (err) =>
+				if err? then return callback err
+				callback()
+
+
+	getBuildParams: (apiReq, callback, paramDef = @getParams) ->
+		unless paramDef
 			return @routeBuildParams apiReq, callback
 
-		stampede.async.each Object.keys(@getParams), (name, cb) =>
-			p = @getParams[name]
+		stampede.async.each Object.keys(paramDef), (name, cb) =>
+			p = paramDef[name]
 			val = apiReq.queryArg name
 			p.doCheck "get[#{name}]", val, apiReq, (checkErr, newVal) =>
 				if checkErr?
 					cb checkErr
 				else
-					log.debug "Param #{p.getParamName(name)} set to '#{newVal}' (originally #{val})"
+					log.debug "Get param #{p.getParamName(name)} set to '#{newVal}' (originally #{val})"
 					apiReq.setParam p.getParamName(name), newVal
 					cb()
 		, (err) =>
@@ -42,7 +56,7 @@ class routeClass
 			@routeBuildParams apiReq, callback
 
 	socketBuildParams: (apiReq, callback) ->
-		@getBuildParams apiReq, callback
+		@getBuildParams apiReq, callback, @socketParams
 
 	getUrl: ->
 		if stampede._.isArray @url
