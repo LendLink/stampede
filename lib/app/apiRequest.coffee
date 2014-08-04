@@ -72,6 +72,8 @@ class module.exports
 	streamingTidyBucket:	undefined
 
 	isStreaming:			false
+	cancelled:				false
+	instanceId:				undefined
 
 	dump: ->
 		console.log " "
@@ -103,6 +105,17 @@ class module.exports
 			@session = @socket.stampede.session
 		@isSocket = true
 		@
+
+	setInstanceId: (@instanceId) -> @
+
+	cancel: ->
+		if @isSocket and @socketCallback?
+			@send { error: 'cancelled' }
+
+		@cancelled = true
+		@
+
+	isCancelled: -> @cancelled
 
 	setStreaming: (set) ->
 		if set is true
@@ -201,6 +214,10 @@ class module.exports
 
 	finish: ->
 		log.debug "Auto-closing DB connections"
+
+		if @instanceId? and @cancelled is false
+			@parentApi.finishRequestInstance @socket, @instanceId
+
 		for dbh in @pgDbList when dbh?
 			dbh.disconnect()
 
@@ -215,8 +232,11 @@ class module.exports
 			if @socketCallback?
 				# console.log "sending..."
 				# console.log response
-				@socketCallback response
-				@socketCallback = undefined
+				if @cancelled
+					log.debug "Ignoring request to send message to cancelled callback."
+				else
+					@socketCallback response
+					@socketCallback = undefined
 		else
 			log.error "apiRequest - Eh?  Dunno how to send"
 
@@ -230,10 +250,19 @@ class module.exports
 			log.error "Trying to stream to a non-streaming connection."
 			return @
 
+		if channel is 'error'
+			stampede.log.critical "apiRequest asked to stream a message to channel 'error'.  Changing to errorMsg"
+			console.log msg
+			channel = 'errorMsg'
+
 		if @isSocket
 			log.debug "Sending stream message to #{channel}"
-			# console.log msg
-			@socket.emit channel, msg, callback
+
+			if @cancelled
+				log.debug "Ignoring stream message from cancelled request."
+			else
+				# console.log msg
+				@socket.emit channel, msg, callback
 		else
 			log.error "Do not how to stream to this connection."
 

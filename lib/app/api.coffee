@@ -67,6 +67,7 @@ class module.exports extends service
 			log.debug "New socket connection established"
 			socket.stampede = {}
 			socket.stampede.controllerObject = @
+			socket.stampede.cancelableRequests = {}
 
 			# Register any socket event listeners that have been defined
 			if @socketCallbacks?
@@ -93,6 +94,9 @@ class module.exports extends service
 					return callback { error: 'path not specified' }
 
 				@socketRequest socket, req, callback
+
+			socket.on 'message', (req) =>
+				log.error "Unhandled message on socket: #{req}"
 
 			if @onSocketConnect?
 				@onSocketConnect(con)
@@ -157,7 +161,21 @@ class module.exports extends service
 		apiReq.setMethod method
 
 		# Work through the config
-		apiReq.setStreaming(match.route.socketOptions.stream ? match.route.options.stream ? false)
+		apiReq.setStreaming(match.route.socketOptions?.stream ? match.route.options?.stream ? false)
+
+		if match.route.socketOptions?
+			# Is this a request that should only have a single instance per connection?
+			if match.route.socketOptions.singleInstance?
+				sid = match.route.socketOptions.singleInstance
+
+				# Cancel existing request
+				if socket.stampede.cancelableRequests[sid]?
+					log.debug "Cancelling existing request for #{sid}"
+					socket.stampede.cancelableRequests[sid].cancel()
+
+				log.debug "Starting unique instance of #{sid}"
+				socket.stampede.cancelableRequests[sid] = apiReq
+				apiReq.setInstanceId sid
 
 		# Do we have a matching definition for our method type?
 		if match.route[method]?
@@ -167,6 +185,9 @@ class module.exports extends service
 		else
 			callback { error: "Handler for method #{method} was not found", request: req }
 
+	finishRequestInstance: (socket, sid) ->
+		delete socket.stampede.cancelableRequests[sid]
+		@
 
 	handleRequest: (match, apiReq) ->
 		method = apiReq.getMethod()
