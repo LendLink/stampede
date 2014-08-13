@@ -53,12 +53,12 @@ module.exports = class paramDefinition
 		# Call our check function
 		if @check?
 			@check val, (err, newVal) =>
-				if err? then cb "#{paramName}: #{err}"
-				else cb undefined, newVal
+				if err? then return cb "#{paramName}: #{err}"
+				else return cb undefined, newVal
 			, apiReq
 		else
 			# No more checks so we can call our callback
-			cb undefined, val
+			return cb undefined, val
 
 
 
@@ -81,11 +81,53 @@ class validatorInteger extends paramDefinition
 	regex: /^[0-9]+$/
 
 	check: (val, cb) ->
-		if @min? and val < @min then return cb "Value less than minimum of #{@min}"
-		if @max? and val > @max then return cb "Value greater than maximum of #{@max}"
-		cb undefined, val
+		parsedVal = undefined
+		error = undefined
+
+		try
+			parsedVal = parseInt val
+			if @min? and parsedVal < @min
+				error = "Value less than minimum of #{@min}"
+			if @max? and parsedVal > @max
+				error = "Value greater than maximum of #{@max}"
+		catch e
+			parsedVal = undefined
+			error = e
+
+		cb error, parsedVal
 
 paramDefinition.integer = -> new validatorInteger()
+
+
+class validatorFloat extends paramDefinition
+	typeName:		'float'
+	min:			undefined
+	max:			undefined
+
+	setMin: (@min) -> @
+	getMin: -> @min
+	setMax: (@max) -> @
+	getMax: -> @max
+
+	regex: /^[0-9]+(\.[0-9]*)?$/
+
+	check: (val, cb) ->
+		parsedVal = undefined
+		error = undefined
+
+		try
+			parsedVal = parseFloat val
+			if @min? and parsedVal < @min
+				error = "Value less than minimum of #{@min}"
+			else if @max? and parsedVal > @max
+				error = "Value greater than maximum of #{@max}"
+		catch e
+			parsedVal = undefined
+			error = e
+
+		cb error, parsedVal
+
+paramDefinition.float = -> new validatorFloat()
 
 
 class validatorString extends paramDefinition
