@@ -22,8 +22,13 @@ class module.exports extends service
 				if done? then return done err
 				else return
 
-			for dbName in @getSettings('dbList')
-				log.debug "Connecting to database #{dbName}"
+			dbList = @getSettings('dbList') ? []
+
+			unless dbList.length
+				log.warn "No databases to connect to for db service #{@name}" 
+
+			for dbName in dbList
+				log.debug "#{@name} connecting to database #{dbName}"
 				if @dbHandles[dbName]?
 					log.critical "Database connection to DB '#{dbName}' already created."
 				else
@@ -32,6 +37,7 @@ class module.exports extends service
 			if done? then done()
 
 	connectDb: (dbName) ->
+		log.debug "Connecting to database '#{dbName}'"
 		if @dbHandles[dbName]? 
 			@dbHandles[dbName].dbh.disconnect
 			delete @dbHandles[dbName]

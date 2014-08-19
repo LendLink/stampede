@@ -67,13 +67,31 @@ class module.exports extends service
 			log.debug "New socket connection established"
 			socket.stampede = {}
 			socket.stampede.controllerObject = @
+			socket.stampede.messageHandlers = {}
 			socket.stampede.cancelableRequests = {}
+			socket.stampede.autoTidy = new stampede.autoTidy.bucket()
+			socket.stampede.redisClient = {}
+
+
+			@extendSocketInterface(socket)
 
 			# Register any socket event listeners that have been defined
 			if @socketCallbacks?
 				for fnName, fn in @socketCallbacks
 					socket.on fnName, fn
 
+			socket.on 'disconnect', () =>
+				log.debug 'Auto-disconnecting from redis'
+				
+				for n, rc of socket.stampede.redisClient ? {}
+					log.debug "Auto-disconnecting from redis db: #{n}"
+					rc.quit()
+
+				delete socket.stampede
+
+			socket.on 'message', (channel, msg) =>
+				for sub in socket.stampede.messageHandlers[channel] ? []
+					sub.fn(socket, channel, msg, sub.data)
 
 			socket.on 'setSession', (sessionId, callback) =>
 				socket.stampede.setSessionId = sessionId

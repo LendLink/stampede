@@ -108,6 +108,43 @@ class module.exports
 
 	setInstanceId: (@instanceId) -> @
 
+	subscribe: (channel, handler, redisDbName = 'redis', data = undefined, append = false) ->
+		unless @isSocket
+			log.error "Trying to subscribe to redis stream #{channel} on db #{redisDbName} on non-websocket connection"
+			return @
+
+		if @socket.stampede.redisClient[redisDbName]?
+			rc = @socket.stampede.redisClient[redisDbName]
+		else
+			rc = @parentApi.getApp().connectRedis(redisDbName)
+			@socket.stampede.redisClient[redisDbName] = rc
+
+		if append
+			@socket.stampede.messageHandlers[channel] ?= []
+		else
+			@socket.stampede.messageHandlers[channel] = []
+		@socket.stampede.messageHandlers[channel].push { fn: handler, data: data }
+
+		rc.subscribe channel
+		@
+
+	subscribeAppend: (channel, handler, redisDbName, data) ->
+		@subscribe channel, handler, redisDbName, data, true
+
+	autoSubscribe: (channel, msgName, redisDbName) ->
+		msgName ?= channel
+		@subscribe channel, (socket, chan, msg, data) ->
+			socket.emit msgName, msg
+		, redisDbName
+
+	unsubscribe: (channel, handler) ->
+		@socket.stampede.messageHandlers[channel] = (for h in @socket.stampede.messageHandlers[channel] ? [] when h isnt handler)
+		@
+
+	unsubscribeAll: (channel) ->
+		delete @socket.stampede.messageHandlers[channel]
+		@
+
 	cancel: ->
 		if @isSocket and @socketCallback?
 			@send { error: 'cancelled' }
