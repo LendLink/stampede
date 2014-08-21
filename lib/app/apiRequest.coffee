@@ -126,8 +126,8 @@ class module.exports
 				
 				try
 					msg = JSON.parse msg
-				catch
-					log.debug "Redis message isn't valid JSON, passing raw message."
+				catch (e)
+					log.debug "Redis message isn't valid JSON, passing raw message: #{e}"
 
 				for sub in socket.stampede.messageHandlers[channel] ? []
 					sub.fn(socket, channel, msg, sub.data)
