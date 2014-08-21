@@ -119,6 +119,19 @@ class module.exports
 			rc = @parentApi.getApp().connectRedis(redisDbName)
 			@socket.stampede.redisClient[redisDbName] = rc
 
+			log.debug "Connecting redis against the session"
+			socket = @socket
+			rc.on 'message', (channel, msg) ->
+				log.debug "Redis message received: #{channel}"
+				
+				try
+					msg = JSON.parse msg
+				catch
+					log.debug "Redis message isn't valid JSON, passing raw message."
+
+				for sub in socket.stampede.messageHandlers[channel] ? []
+					sub.fn(socket, channel, msg, sub.data)
+
 		if append
 			@socket.stampede.messageHandlers[channel] ?= []
 		else
@@ -134,11 +147,12 @@ class module.exports
 	autoSubscribe: (channel, msgName, redisDbName) ->
 		msgName ?= channel
 		@subscribe channel, (socket, chan, msg, data) ->
+			log.debug "Auto-relaying message on channel '#{chan}' to '#{msgName}'"
 			socket.emit msgName, msg
 		, redisDbName
 
 	unsubscribe: (channel, handler) ->
-		@socket.stampede.messageHandlers[channel] = (for h in @socket.stampede.messageHandlers[channel] ? [] when h isnt handler)
+		@socket.stampede.messageHandlers[channel] = (h for h in @socket.stampede.messageHandlers[channel] ? [] when h isnt handler)
 		@
 
 	unsubscribeAll: (channel) ->

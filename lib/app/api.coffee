@@ -73,25 +73,19 @@ class module.exports extends service
 			socket.stampede.redisClient = {}
 
 
-			@extendSocketInterface(socket)
-
 			# Register any socket event listeners that have been defined
 			if @socketCallbacks?
 				for fnName, fn in @socketCallbacks
 					socket.on fnName, fn
 
 			socket.on 'disconnect', () =>
-				log.debug 'Auto-disconnecting from redis'
+				log.debug 'Socket disconnected'
 				
 				for n, rc of socket.stampede.redisClient ? {}
 					log.debug "Auto-disconnecting from redis db: #{n}"
 					rc.quit()
 
 				delete socket.stampede
-
-			socket.on 'message', (channel, msg) =>
-				for sub in socket.stampede.messageHandlers[channel] ? []
-					sub.fn(socket, channel, msg, sub.data)
 
 			socket.on 'setSession', (sessionId, callback) =>
 				socket.stampede.setSessionId = sessionId

@@ -224,6 +224,7 @@ class module.exports #extends stampede.events
 		# Did we find out database definition?
 		return process.nextTick(=> callback("Database connection '#{dbName}' is not defined.")) unless db?
 
+		# log.debug "Connecting to database #{db}"
 		stampede.dba.connect db, (err, dbh) =>
 			callback err, dbh
 
