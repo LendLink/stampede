@@ -68,6 +68,15 @@ Define our preset validation rules
 
 ###
 
+class validatorAny extends paramDefinition
+	typeName:		'any'
+	check: (val, cb) ->
+		cb undefined, val
+
+paramDefinition.any = -> new validatorAny()
+
+
+
 class validatorInteger extends paramDefinition
 	typeName:		'integer'
 	min:			undefined
@@ -177,5 +186,28 @@ class validatorJson extends paramDefinition
 		cb error, parsedVal
 
 paramDefinition.json = -> new validatorJson()
+
+
+class validatorArray extends paramDefinition
+	check: (val, cb) ->
+		parsedVal = undefined
+		error = undefined
+
+		try
+			if stampede._.isString val
+				parsedVal = JSON.parse(val)
+				unless stampede._.isArray parsedVal
+					error = "Invalid JSON Array: #{val}"
+			else if stampede._.isArray val
+				parsedVal = val
+			else
+				error = "Invalid JSON Array object: #{val}"
+		catch e
+			parsedVal = undefined
+			error = e
+
+		cb error, parsedVal
+
+paramDefinition.array = -> new validatorArray()
 
 
