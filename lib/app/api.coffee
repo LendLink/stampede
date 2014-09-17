@@ -373,8 +373,8 @@ class module.exports extends service
 			# For each file in our directory we're going to require it and then scan it for routes
 			for file in files when not @handlers[path + '/' + file]?
 				localPath = path + '/' + file
-				do (localPath) ->
-					log.debug "Loading handler #{localPath}."
+				do (localPath) =>
+					log.debug "Loading handler #{localPath}"
 					h = require localPath
 					@handlers[localPath] = h
 
