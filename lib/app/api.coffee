@@ -372,16 +372,16 @@ class module.exports extends service
 
 			# For each file in our directory we're going to require it and then scan it for routes
 			for file in files when not @handlers[path + '/' + file]?
-				localPath = localPath
+				localPath = path + '/' + file
 				do (localPath) ->
-					log.debug "Loading handler #{path + '/' + file}"
+					log.debug "Loading handler #{localPath}."
 					h = require localPath
 					@handlers[localPath] = h
 
 					# If we're in debug mode reload the process (call exit) if one of our source files changes
 					if @inotify?
 						@inotify.addWatch {
-							path:			path + '/' + file
+							path:			localPath
 							watch_for:		Inotify.IN_CLOSE_WRITE
 							callback:		->
 								log.debug "File 'localPath' has changed, restarting process."
