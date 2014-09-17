@@ -10,6 +10,7 @@ express = require 'express'
 http = require 'http'
 io = require 'socket.io'
 fs = require 'fs'
+Inotify = require('inotify').Inotify
 
 
 log = stampede.log
@@ -30,6 +31,7 @@ class module.exports extends service
 	socketIoLogger:			undefined					# The instance of our logger that will bridge socket.io's logging with that of stampede
 	router:					undefined
 	handlers:				undefined
+	inotify:				undefined
 
 	redisDbName:			'redis'
 	redisSessionPrefix:		'session:'
@@ -40,6 +42,9 @@ class module.exports extends service
 		super app, config, bootConfig
 		@router = new stampede.router()
 		@handlers = {}
+
+		if app.isDebug()
+			@inotify = new Inotify()
 
 
 	start: (done) ->
@@ -148,21 +153,22 @@ class module.exports extends service
 			next()
 
 	socketRequest: (socket, req, callback) ->
+		# Build the internal request object
+		apiReq = new apiRequest(@)
+		apiReq.setSocket socket, req, callback
+			.setRouteVars match.vars
+			.setUrl req.path
+
 		# Does the request match anything in our router?
 		match = @router.find req.path
 
 		# If we don't have a match then throw that error
 		unless match?
 			log.debug "Route for url (socket) '#{req.path}' not found."
-			return callback { error: "Path not found: '#{req.path}'", request: req }
+			if callback?
+				return apiReq.send { error: "Path not found: '#{req.path}'", request: req }
 
 		log.debug "Route for url '#{req.path}' was found."
-
-		# Build the internal request object
-		apiReq = new apiRequest(@)
-		apiReq.setSocket socket, req, callback
-			.setRouteVars match.vars
-			.setUrl req.path
 
 		# Work out which HTTP method to use in our request
 		method = req.method
@@ -195,7 +201,7 @@ class module.exports extends service
 
 			@handleRequest match, apiReq
 		else
-			callback { error: "Handler for method #{method} was not found", request: req }
+			apiReq.send { error: "Handler for method #{method} was not found", request: req }
 
 	finishRequestInstance: (socket, sid) ->
 		delete socket.stampede.cancelableRequests[sid]
@@ -229,6 +235,15 @@ class module.exports extends service
 				return apiReq.send { error : 'Insufficient permissions', detail: 'Session is not logged in' }
 			else
 				log.debug 'Session is correctly logged in'
+
+		if sessionConfig.roles?
+			roleList = if stampede._.isArray(sessionConfig.roles) then sessionConfig.roles else [ sessionConfig.roles ]
+			for r in roleList
+				if session.hasRole(r) is false
+					log.debug "Session does not have role #{r}: #{session.get('roles').join(', ')}"
+					return apiReq.send { error: 'Insufficient permissions', detail: 'Session does not have sufficient permission' }
+				else
+					log.debug "Session has role #{r}"
 
 		if sessionConfig.userIdMatch?
 			if '' + session.get('userId') isnt '' + apiReq.arg(sessionConfig.userIdMatch)
@@ -360,6 +375,15 @@ class module.exports extends service
 				log.debug "Loading handler #{path + '/' + file}"
 				h = require path + '/' + file
 				@handlers[path + '/' + file] = h
+
+				# If we're in debug mode reload the process (call exit) if one of our source files changes
+				if @inotify?
+					@inotify {
+						path:			path + '/' + file
+						watch_for:		Inotify.IN_CLOSE
+						callback:		->
+							process.exit()
+					}
 
 				# Scan through the handler for routes that can be added to the router
 				for name, route of h when stampede._.isFunction(route)

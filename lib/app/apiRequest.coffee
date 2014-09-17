@@ -10,9 +10,11 @@ log = stampede.log
 class sessionHandler
 	data:					undefined
 	loggedIn:				undefined
+	roles:					undefined
 
 	constructor: ->
 		@data = {}
+		@roles = {}
 
 	get: (k) -> @data[k]
 	set: (k, v) ->
@@ -25,9 +27,14 @@ class sessionHandler
 	setFromPhp: (ses) ->
 		@set 'userId', ses.id
 		@set 'roles', ses.roles ? []
+
+		for r in @get('roles')
+			@roles[r] = true
 		
 		if ses.id?
 			@setLoggedIn()
+
+	hasRole: (role) -> @roles[role] ? false
 
 	setLoggedIn: (@loggedIn = 'logged in') -> @
 	getLoggedIn: -> @loggedIn

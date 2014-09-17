@@ -40,6 +40,7 @@ class module.exports #extends stampede.events
 	environment:		undefined
 	runningServices:	undefined
 	workerService:		undefined
+	debugMode:			false
 
 	# Class methods
 	@service:			require './app/service'
@@ -118,6 +119,7 @@ class module.exports #extends stampede.events
 	filePath: (extList...) ->
 		@baseDirectory + extList.join '/'
 
+	isDebug: -> @debugMode
 
 	## Process command line arguments
 	processCommandArguments: (callback) ->
@@ -136,6 +138,7 @@ class module.exports #extends stampede.events
 		if commander.debug? and commander.debug is true
 			log.toConsole('debug')
 			log.debug 'Debug mode enabled'
+			@debugMode = true
 		else
 			log.toConsole('info')
 
