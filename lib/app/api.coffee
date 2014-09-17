@@ -384,7 +384,7 @@ class module.exports extends service
 							path:			localPath
 							watch_for:		Inotify.IN_CLOSE_WRITE
 							callback:		->
-								log.debug "File 'localPath' has changed, restarting process."
+								log.debug "File '#{localPath}' has changed, restarting process."
 								process.exit()
 						}
 
