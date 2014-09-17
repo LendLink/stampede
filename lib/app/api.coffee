@@ -372,30 +372,33 @@ class module.exports extends service
 
 			# For each file in our directory we're going to require it and then scan it for routes
 			for file in files when not @handlers[path + '/' + file]?
-				log.debug "Loading handler #{path + '/' + file}"
-				h = require path + '/' + file
-				@handlers[path + '/' + file] = h
+				localPath = localPath
+				do (localPath) ->
+					log.debug "Loading handler #{path + '/' + file}"
+					h = require localPath
+					@handlers[localPath] = h
 
-				# If we're in debug mode reload the process (call exit) if one of our source files changes
-				if @inotify?
-					@inotify {
-						path:			path + '/' + file
-						watch_for:		Inotify.IN_CLOSE
-						callback:		->
-							process.exit()
-					}
+					# If we're in debug mode reload the process (call exit) if one of our source files changes
+					if @inotify?
+						@inotify.addWatch {
+							path:			path + '/' + file
+							watch_for:		Inotify.IN_CLOSE_WRITE
+							callback:		->
+								log.debug "File 'localPath' has changed, restarting process."
+								process.exit()
+						}
 
-				# Scan through the handler for routes that can be added to the router
-				for name, route of h when stampede._.isFunction(route)
-					log.debug "Checking potential route #{name}"
-					
-					# Temporarily instance the route
-					i = new route()
-					if i instanceof stampede.route
-						log.debug "Route #{name} is valid, installing in our router."
-						@router.addRoute i
-					else
-						log.debug "Route #{name} is not a stampede route."
+					# Scan through the handler for routes that can be added to the router
+					for name, route of h when stampede._.isFunction(route)
+						log.debug "Checking potential route #{name}"
+						
+						# Temporarily instance the route
+						i = new route()
+						if i instanceof stampede.route
+							log.debug "Route #{name} is valid, installing in our router."
+							@router.addRoute i
+						else
+							log.debug "Route #{name} is not a stampede route."
 
 			process.nextTick => done()
 		@
