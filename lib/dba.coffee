@@ -1397,6 +1397,19 @@ class exports.text extends exports.column
 class exports.json extends exports.column
 	type:				'json'
 
+	constructor: ->
+		super
+
+		@onCall 'pre_set_value', (ev, val) ->
+            if val? and val != ''
+                return JSON.stringify(val)
+            else
+                return null
+                
+		@onCall 'pre_get_value', (ev, val) ->
+			if val? then return JSON.parse(val)
+			val
+
 
 
 class exports.boolean extends exports.column
