@@ -906,8 +906,8 @@ class exports.multichoice extends exports.field
 					id = @getOptionId(v)
 					if id? then @addSelected(id)
 					
-			console.log "Multichoice:"
-			console.log val
+			#console.log "Multichoice:"
+			#console.log val
 		@
 
 
