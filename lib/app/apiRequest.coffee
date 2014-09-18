@@ -279,9 +279,18 @@ class module.exports
 		for dbh in @pgDbList when dbh?
 			dbh.disconnect()
 
+	setStatus: (code) ->
+		if @isExpress
+			@expressRes.status code
+
+		@
+
 	send: (response = {}, doNotFinish = false) ->
 		# Tidy up and close our connections
 		@finish() unless doNotFinish is true
+
+		# Stop multiple responses
+		return unless @canSend
 		@canSend = false
 
 		if @isExpress is true

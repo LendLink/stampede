@@ -24,6 +24,7 @@
     "commander": "2.x",
     "redis": "0.x",
     "hiredis": "*",
-    "inotify": "1.x"
+    "inotify": "1.x",
+    "cookie-parser": "1.x"
   }
 }

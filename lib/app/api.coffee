@@ -12,6 +12,8 @@ io = require 'socket.io'
 fs = require 'fs'
 Inotify = require('inotify').Inotify
 
+cookieParser = require 'cookie-parser'
+
 
 log = stampede.log
 
@@ -57,6 +59,7 @@ class module.exports extends service
 
 		# Set up our express middleware
 		@expressApp.use express.compress()
+		@expressApp.use cookieParser()
 		@expressApp.use @expressRequest
 		@expressApp.use (req, res, next) =>
 			res.send 404, 'Sorry could not find that!'
@@ -125,6 +128,7 @@ class module.exports extends service
 		super done
 
 	expressRequest: (req, res, next) =>
+		log.debug "Express request for URL '#{req.path}'"
 		# Does the request match anything in our router?
 		match = @router.find req.path
 
@@ -144,19 +148,32 @@ class module.exports extends service
 		method = req.method.toLowerCase()
 		apiReq.setMethod method
 
-		# Do we have a matching definition for our method type?
-		if match.route[method]?
-			log.debug "Handler for method #{method} was found"
-			@handleRequest match, apiReq
-		else
-			log.debug "Handler for method #{method} was not found"
-			next()
+		# Detect and set the session, if we have one
+		stampede.async.series [
+			(done) =>
+				if match.route.getSessionConfig()
+					# We require a session so we need to look it up and store it for later processing
+					@expressLookupSession(apiReq, done)
+				else
+					done()
+		], (err) =>
+			if err?
+				apiReq.setStatus 401
+				apiReq.send err
+				next()
+
+			# Do we have a matching definition for our method type?
+			if match.route[method]?
+				log.debug "Handler for method #{method} was found"
+				@handleRequest match, apiReq
+			else
+				log.debug "Handler for method #{method} was not found"
+				next()
 
 	socketRequest: (socket, req, callback) ->
 		# Build the internal request object
 		apiReq = new apiRequest(@)
 		apiReq.setSocket socket, req, callback
-			.setRouteVars match.vars
 			.setUrl req.path
 
 		# Does the request match anything in our router?
@@ -169,6 +186,9 @@ class module.exports extends service
 				return apiReq.send { error: "Path not found: '#{req.path}'", request: req }
 
 		log.debug "Route for url '#{req.path}' was found."
+
+		apiReq.setRouteVars match.vars
+
 
 		# Work out which HTTP method to use in our request
 		method = req.method
@@ -404,6 +424,38 @@ class module.exports extends service
 		@
 
 
+
+	expressLookupSession: (apiReq, done) ->
+		console.log "Coooookies:"
+		console.log apiReq.expressReq.cookies
+		# console.log apiReq.expressReq
+
+		sessionId = apiReq.expressReq.cookies?[@config.sessionCookie ? 'assetz']
+
+		unless sessionId? then return done()
+
+		rc = @getApp().connectRedis @redisDbName
+		rc.get @redisSessionPrefix + sessionId, (err, ses) =>
+			rc.quit()
+
+			if err?
+				log.error "Session lookup error (express): #{err}"
+				return done { status: 'error', error: err, sessionFound: false }
+
+			unless ses?
+				log.error "Session not found (express): #{sessionId}"
+				return done { status: 'notFound', sessionFound: false }
+
+			sesData = JSON.parse ses
+
+			session = new (apiRequest.sessionHandler)
+			session.setFromPhp sesData
+
+			apiReq.setSession session
+
+			done()
+
+
 	socketSetSession: (socket, sId, callback) ->
 		unless stampede._.isString sId
 			callback { status: 'error', error: 'Specified session Id is not a string', sessionFound: false }
@@ -416,11 +468,11 @@ class module.exports extends service
 
 			if err?
 				callback { status: 'error', error: err, sessionFound: false }
-				log.error "Session lookup error: #{err}"
+				log.error "Session lookup error (socket): #{err}"
 				return socket.emit 'server error', { error: 'Error retrieving session details', detail: err }
 
 			unless ses?
-				log.error "Session not found: #{sId}"
+				log.error "Session not found (socket): #{sId}"
 				callback { status: 'notFound', sessionFound: false }
 				return socket.emit 'server error', { error: 'Session not found', detail: sId }
 
