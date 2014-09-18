@@ -26,6 +26,6 @@
     "hiredis": "*",
     "inotify": "1.x",
     "cookie-parser": "1.x",
-    "big.js": "2.x"
+    "bignumber.js": "1.x"
   }
 }
