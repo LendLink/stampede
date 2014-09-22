@@ -1407,7 +1407,11 @@ class exports.json extends exports.column
                 return null
                 
 		@onCall 'pre_get_value', (ev, val) ->
-			if val? then return JSON.parse(val)
+			if val? 
+				if typeof(val) == 'object'
+					return val
+				else 
+					return JSON.parse(val)
 			val
 
 
