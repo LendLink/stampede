@@ -61,6 +61,26 @@ exports.clone = (obj, excludeProperties = []) ->
 	return newInstance
 
 
+exports.greatest = (args...) ->
+	if args.length is 1 and stampede._.isArray args[0]
+		args = args[0]
+
+	v = args.shift()
+	for i in args
+		if i > v then v = i
+
+	v
+
+exports.least = (args...) ->
+	if args.length is 1 and stampede._.isArray args[0]
+		args = args[0]
+
+	v = args.shift()
+	for i in args
+		if i < v then v = i
+
+	v
+
 exports.toBool = (val) ->
 	unless val? then return false
 	if val then return true
