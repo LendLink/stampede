@@ -158,7 +158,7 @@ class validatorBigNumber extends paramDefinition
 	getMax: -> @max
 
 	setDP: (val) ->
-		@precision = stampede.bignumber precision
+		@precision = stampede.bignumber val
 		@
 	setPrecision: (val) -> @setDP val
 	getPrecision: -> @precision
