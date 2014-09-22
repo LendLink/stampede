@@ -157,9 +157,11 @@ class validatorBigNumber extends paramDefinition
 		@
 	getMax: -> @max
 
-	setPrecision: (val) ->
+	setDP: (val) ->
 		@precision = stampede.bignumber precision
 		@
+	setPrecision: (val) -> @setDP val
+	getPrecision: -> @precision
 
 	regex: /^\-?[0-9]+(\.[0-9]*)?$/
 
