@@ -145,6 +145,7 @@ class validatorBigNumber extends paramDefinition
 	typeName:		'float'
 	min:			undefined
 	max:			undefined
+	precision:		undefined
 
 	setMin: (min) ->
 		@min = stampede.bignumber min
@@ -155,6 +156,10 @@ class validatorBigNumber extends paramDefinition
 		@max = stampede.bignumber max
 		@
 	getMax: -> @max
+
+	setPrecision: (val) ->
+		@precision = stampede.bignumber precision
+		@
 
 	regex: /^\-?[0-9]+(\.[0-9]*)?$/
 
@@ -168,6 +173,8 @@ class validatorBigNumber extends paramDefinition
 				error = "Value less than minimum of #{@min.toString()}"
 			else if @max? and parsedVal.gt(@max)
 				error = "Value greater than maximum of #{@max.toString()}"
+			else if @precision? and parsedVal.mod(stampede.bignumber(10).pow(@precision.neg())) isnt 0
+				error = "Value has more than #{@precision.toString()} decimal place#{if @precision.equals(1) then '' else 's'}"
 		catch e
 			parsedVal = undefined
 			error = e
