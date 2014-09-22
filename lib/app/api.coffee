@@ -324,12 +324,19 @@ class module.exports extends service
 		else
 			apiReq.sendError "No DB connection specified"
 
+	mapBindValue: (keyName, val) ->
+		if stampede.moment.isMoment(val)
+			log.debug "Mapping bind value for #{keyName} to a DB friendly timestamp"
+			val.format 'YYYY-MM-DD hh:mm:ss'
+		else
+			val
+
 	autoRequestRunQuery: (route, apiReq, dbh) ->
 		if route.fetchAll? and route.fetchOne?
 			apiReq.error "Only one of fetchAll and fetchOne can be defined"
 		else if route.fetchAll? or route.fetchOne?
 			# Map any bind variables to our validated parameters
-			bind = (apiReq.param(k) for k in (route.bind ? []))
+			bind = (@mapBindValue(k, apiReq.param(k)) for k in (route.bind ? []))
 
 			# Log what we're executing
 			log.debug "Running query: #{route.fetchAll ? route.fetchOne}"
@@ -349,11 +356,32 @@ class module.exports extends service
 						apiReq.send { error: "not found" }
 					else
 						# Pass our results on to the filter
-						@autoRequestFilter route, apiReq, dbh, res.rows, route.fetchOne?
+						@autoRequestFormat route, apiReq, dbh, res.rows, route.fetchOne?
 		else if route.send?
 			route.send apiReq
 		else
 			apiReq.error "Either fetchAll or fetchOne or send must be defined"
+
+	autoRequestFormat: (route, apiReq, dbh, res, fetchOne) ->
+		if route.format?
+			log.debug "autoRequestFormat reformatting output"
+			stampede.async.each res, (row, nextRow) =>
+				stampede.async.each Object.keys(route.format), (column, next) =>
+					if route.format[column]?
+						route.format[column].doCheck "dbFormat[#{column}]", row[column], apiReq, (checkErr, newVal) =>
+							if checkErr?
+								row[column] = "*** ERROR: #{checkErr} ***"
+							else
+								row[column] = route.format[column].toString(newVal)
+
+							next()
+				, (err) =>
+					nextRow err
+			, (err) =>
+				@autoRequestFilter route, apiReq, dbh, res, fetchOne
+		else
+			@autoRequestFilter route, apiReq, dbh, res, fetchOne
+
 
 	autoRequestFilter: (route, apiReq, dbh, res, fetchOne) ->
 		if route.filter?
@@ -426,10 +454,6 @@ class module.exports extends service
 
 
 	expressLookupSession: (apiReq, done) ->
-		console.log "Coooookies:"
-		console.log apiReq.expressReq.cookies
-		# console.log apiReq.expressReq
-
 		sessionId = apiReq.expressReq.cookies?[@config.sessionCookie ? 'assetz']
 
 		unless sessionId? then return done()

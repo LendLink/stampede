@@ -26,6 +26,8 @@ module.exports = class paramDefinition
 	notNull: @notRequired
 	disallowNull: @notRequired
 
+	toString: (val) -> val
+
 	parse: (val) -> val
 
 	checkNull: (val) ->
@@ -118,7 +120,7 @@ class validatorFloat extends paramDefinition
 	setMax: (@max) -> @
 	getMax: -> @max
 
-	regex: /^[0-9]+(\.[0-9]*)?$/
+	regex: /^\-?[0-9]+(\.[0-9]*)?$/
 
 	check: (val, cb) ->
 		parsedVal = undefined
@@ -137,6 +139,43 @@ class validatorFloat extends paramDefinition
 		cb error, parsedVal
 
 paramDefinition.float = -> new validatorFloat()
+
+
+class validatorBigNumber extends paramDefinition
+	typeName:		'float'
+	min:			undefined
+	max:			undefined
+
+	setMin: (min) ->
+		@min = stampede.bignumber min
+		@
+	getMin: -> @min
+
+	setMax: (max) ->
+		@max = stampede.bignumber max
+		@
+	getMax: -> @max
+
+	regex: /^\-?[0-9]+(\.[0-9]*)?$/
+
+	check: (val, cb) ->
+		parsedVal = undefined
+		error = undefined
+
+		try
+			parsedVal = stampede.bignumber val
+			if @min? and parsedVal.lt(@min)
+				error = "Value less than minimum of #{@min.toString()}"
+			else if @max? and parsedVal.gt(@max)
+				error = "Value greater than maximum of #{@max.toString()}"
+		catch e
+			parsedVal = undefined
+			error = e
+
+		cb error, parsedVal
+
+paramDefinition.numeric = -> new validatorBigNumber()
+paramDefinition.bignumber = -> new validatorBigNumber()
 
 
 class validatorString extends paramDefinition
@@ -211,3 +250,57 @@ class validatorArray extends paramDefinition
 paramDefinition.array = -> new validatorArray()
 
 
+class validatorDate extends paramDefinition
+	regex: /^\d{4}\-\d{2}\-\d{2}/
+
+paramDefinition.date = -> new validatorDate()
+
+
+class validatorMomentDate extends paramDefinition
+	format:			['ddd MMM DD YYYY', 'YYYY-MM-DD', 'DD/MM/YYYY']
+
+	setFormat: (@format) -> @
+	getFormat: -> @format
+
+	check: (val, cb) ->
+		parsedVal = undefined
+		error = undefined
+
+		try
+			if @format?
+				parsedVal = stampede.moment val, @format
+		catch e
+			parsedVal = undefined
+			error = e
+
+		cb error, parsedVal
+
+	toString: (val) ->
+		val?.format('YYYY-MM-DD')
+
+paramDefinition.momentDate = -> new validatorMomentDate()
+
+
+class validatorMomentTimestamp extends paramDefinition
+	format:			['ddd MMM DD YYYY hh:mm:ss', 'YYYY-MM-DD hh:mm:ss']
+
+	setFormat: (@format) -> @
+	getFormat: -> @format
+
+	check: (val, cb) ->
+		parsedVal = undefined
+		error = undefined
+
+		try
+			if @format?
+				parsedVal = stampede.moment val, @format
+		catch e
+			parsedVal = undefined
+			error = e
+
+		cb error, parsedVal
+
+	toString: (val) ->
+		val?.format('YYYY-MM-DD HH:mm:ss')
+
+paramDefinition.momentTimestamp = -> new validatorMomentTimestamp()
