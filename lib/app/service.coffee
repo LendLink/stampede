@@ -9,6 +9,8 @@ class module.exports extends events
 	cluster:				false
 	config:					undefined
 	bootConfig:				undefined
+	repeatEvery:			undefined
+	repeatEveryIdCount:		0
 
 	name:					'Unnamed service'
 
@@ -17,6 +19,7 @@ class module.exports extends events
 		@config = config
 		@bootConfig = bootConfig ? {}
 		@pgDbList = []
+		@repeatEvery = {}
 
 		@bootConfig.name ?= 'unknown'
 		@bootConfig.settings ?= {}
@@ -50,3 +53,28 @@ class module.exports extends events
 		@parentApp.getBaseDirectory path
 
 
+	# Repeaters
+	cancelEvery: (rep) ->
+		clearTimeout rep.timer
+		@
+
+	every: (seconds, fn) ->
+		repeaterId = @repeatEveryIdCount++
+		proc = { id: repeaterId, locked: false, instantReRun: false, fn: fn }
+
+		@repeatEvery[repeaterId] = proc
+
+		timerFunction = =>
+			if proc.locked
+				proc.instantReRun = true
+			else
+				proc.instantReRun = false
+				proc.locked = true
+				proc.fn proc, () =>
+					proc.locked = false
+					if proc.instantReRun?
+						timerFunction()
+
+		proc.timer = @setTimeout timerFunction, seconds * 1000
+
+		@
