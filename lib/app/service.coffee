@@ -55,7 +55,7 @@ class module.exports extends events
 
 	# Repeaters
 	cancelEvery: (rep) ->
-		clearTimeout rep.timer
+		clearInterval rep.timer
 		@
 
 	every: (seconds, fn) ->
@@ -70,11 +70,12 @@ class module.exports extends events
 			else
 				proc.instantReRun = false
 				proc.locked = true
+
 				proc.fn proc, () =>
 					proc.locked = false
-					if proc.instantReRun?
+					if proc.instantReRun
 						process.nextTick timerFunction()
 
-		proc.timer = @setTimeout timerFunction, seconds * 1000
+		proc.timer = setInterval timerFunction, seconds * 1000
 
 		@
