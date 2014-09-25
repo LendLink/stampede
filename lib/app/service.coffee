@@ -73,7 +73,7 @@ class module.exports extends events
 				proc.fn proc, () =>
 					proc.locked = false
 					if proc.instantReRun?
-						timerFunction()
+						process.nextTick timerFunction()
 
 		proc.timer = @setTimeout timerFunction, seconds * 1000
 
