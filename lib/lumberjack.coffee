@@ -9,6 +9,7 @@
 moment = require 'moment'
 sprintfjs = require 'sprintf-js'
 fs = require 'fs'
+util = require 'util'
 
 module.exports = class Lumberjack
 	actions: []
@@ -66,8 +67,15 @@ module.exports = class Lumberjack
 		@log level, msg
 
 
-	log: (level, msg) ->
+	log: (level, msgList) ->
 		levelValue = @levelToValue(level, 'info')
+
+		msg = ''
+		for m in msgList
+			if typeof(m) is 'string'
+				msg += m
+			else
+				msg += util.inspect(m, { showHidden: false, depth: null })
 
 		for action in @actions
 			if action.minLevel <= levelValue
@@ -82,15 +90,15 @@ module.exports = class Lumberjack
 							console.log "Couldn't write log line: #{fMsg}"
 
 
-	debug: (msg) ->
+	debug: (msg...) ->
 		@log('debug', msg)
-	info: (msg) ->
+	info: (msg...) ->
 		@log('info', msg)
-	warn: (msg) ->
+	warn: (msg...) ->
 		@log('warning', msg)
-	warning: (msg) ->
+	warning: (msg...) ->
 		@log('warning', msg)
-	error: (msg) ->
+	error: (msg...) ->
 		@log('error', msg)
-	critical: (msg) ->
+	critical: (msg...) ->
 		@log('critical', msg)
