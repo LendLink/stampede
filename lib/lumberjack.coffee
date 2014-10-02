@@ -75,7 +75,7 @@ module.exports = class Lumberjack
 			if typeof(m) is 'string'
 				msg += m
 			else
-				msg += util.inspect(m, { showHidden: false, depth: null })
+				msg += util.inspect(m, { showHidden: false, depth: 4 })
 
 		for action in @actions
 			if action.minLevel <= levelValue
