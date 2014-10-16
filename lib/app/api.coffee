@@ -473,6 +473,7 @@ class module.exports extends service
 			sesData = JSON.parse ses
 
 			session = new (apiRequest.sessionHandler)
+			session.setId sessionId
 			session.setFromPhp sesData
 
 			apiReq.setSession session
@@ -503,6 +504,7 @@ class module.exports extends service
 			sesData = JSON.parse ses
 
 			session = new (apiRequest.sessionHandler)
+			session.setId sId
 			session.setFromPhp sesData
 
 			socket.stampede.session = session

@@ -8,6 +8,7 @@ stampede = require '../stampede'
 log = stampede.log
 
 class sessionHandler
+	id:						undefined
 	data:					undefined
 	loggedIn:				undefined
 	roles:					undefined
@@ -22,6 +23,9 @@ class sessionHandler
 		@
 	remove: (k) ->
 		delete @data[k]
+		@
+
+	setId: (@id) ->
 		@
 
 	setFromPhp: (ses) ->
