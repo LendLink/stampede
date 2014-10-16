@@ -107,6 +107,8 @@ class module.exports
 		@isExpress = true
 		@
 
+	getExpress: -> @expressReq
+
 	setSocket: (@socket, @socketReq, @socketCallback) ->
 		if @socket.stampede?.session?
 			@session = @socket.stampede.session
