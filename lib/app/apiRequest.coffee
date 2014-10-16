@@ -27,6 +27,7 @@ class sessionHandler
 
 	setId: (@id) ->
 		@
+	getId: -> @id
 
 	setFromPhp: (ses) ->
 		@set 'userId', ses.id
