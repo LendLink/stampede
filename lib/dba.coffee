@@ -147,6 +147,10 @@ class exports.connection
 		console.log @queryLog
 		@
 
+	dumpLastQuery: ->
+		console.log @queryLog[@queryLog.length - 1]
+		@
+
 
 
 ###
