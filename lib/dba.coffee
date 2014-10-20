@@ -121,6 +121,15 @@ class exports.connection
 
 		query_start = new moment()
 		handle = @pgDbh.query.apply(@pgDbh, args)
+
+		handle.on 'error', =>
+			query_end = new moment()
+			@queryLog.push {
+				sql:			args[0]
+				bind:			if utils.objType(args[1]) is 'array' then args[1] else []
+				time:			query_end.diff(query_start)
+			}
+
 		handle.on 'end', =>
 			query_end = new moment()
 			@queryLog.push {
