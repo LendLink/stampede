@@ -143,6 +143,10 @@ class exports.connection
 
 	connect: (@pgDbh, @pgDone) -> @
 
+	dumpAllQueries: ->
+		console.log @queryLog
+		@
+
 
 
 ###
