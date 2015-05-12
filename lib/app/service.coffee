@@ -58,7 +58,12 @@ class module.exports extends events
 		clearInterval rep.timer
 		@
 
-	every: (seconds, fn) ->
+
+	every: (seconds, options, fn) ->
+		unless fn?
+			fn = options
+			options = {}
+
 		repeaterId = @repeatEveryIdCount++
 		proc = { id: repeaterId, locked: false, instantReRun: false, fn: fn }
 
@@ -74,8 +79,11 @@ class module.exports extends events
 				proc.fn proc, () =>
 					proc.locked = false
 					if proc.instantReRun
-						process.nextTick timerFunction()
+						process.nextTick => timerFunction()
 
 		proc.timer = setInterval timerFunction, seconds * 1000
+
+		if options?.immediate? and options.immediate is true
+			process.nextTick => timerFunction()
 
 		@
