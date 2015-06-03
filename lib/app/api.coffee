@@ -260,7 +260,7 @@ class module.exports extends service
 			roleList = if stampede._.isArray(sessionConfig.roles) then sessionConfig.roles else [ sessionConfig.roles ]
 			for r in roleList
 				if session.hasRole(r) is false
-					log.debug "Session does not have role #{r}: #{session.get('roles').join(', ')}"
+					log.debug "Session does not have role #{r}: #{session.get('roles')?.join(', ')}"
 					return apiReq.send { error: 'Insufficient permissions', detail: 'Session does not have sufficient permission' }
 				else
 					log.debug "Session has role #{r}"

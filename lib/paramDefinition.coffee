@@ -236,6 +236,25 @@ class validatorJson extends paramDefinition
 paramDefinition.json = -> new validatorJson()
 
 
+
+class validatorJsonData extends paramDefinition
+	check: (val, cb) ->
+		cb undefined, JSON.stringify(val)
+
+
+paramDefinition.jsonData = -> new validatorJsonData()
+
+
+class validatorDbIdentifier extends paramDefinition
+	check: (val, cb) ->
+		unless /^[a-zA-Z_][a-zA-Z0-9_]*$/.test
+			return cb "Invalid database identifier"
+		cb undefined, val
+
+paramDefinition.dbIdentifier = -> new validatorDbIdentifier()
+
+
+
 class validatorArray extends paramDefinition
 	check: (val, cb) ->
 		parsedVal = undefined
