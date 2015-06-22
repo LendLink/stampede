@@ -85,11 +85,24 @@ class module.exports #extends stampede.events
 						# We should execute a task
 						log.info "Load and Execute task #{commander.task}"
 						@execTask commander.task
+
+					else if commander.service?
+						# We should manually run a service
+						log.info "Starting service #{commander.service}"
+						@workerStart (err) =>
+							if err?
+								log.critical "Error starting worker: #{err}"
+							else
+								@startService commander.service
+						, commander.service
+
 					else if commander.args.length is 0
 						# We should boot up all default services for this environment
 						@startAllServices()
+
 					else
 						log.critical "No action specified (no tasks, argument#{if commander.args.length is 1 then ' is' else 's are'} '#{commander.args.join(' ')}')"
+
 				else if cluster.isWorker
 					serviceName = process.env[forkEnvVar]
 					process.nextTick =>
@@ -101,7 +114,7 @@ class module.exports #extends stampede.events
 								@startService serviceName
 						, serviceName
 
-	workerStart: (callback) ->
+	workerStart: (callback, serviceName) ->
 		process.nextTick => callback()
 
 
@@ -130,6 +143,7 @@ class module.exports #extends stampede.events
 			.option('-d, --debug', 'Output additional debug information')
 			.option('-e, --environment <env>', 'Override the hostname derived environment that is to be used')
 			.option('-t, --task <task>', 'Run a specific task instead of booting the service')
+			.option('-s, --service <service>', 'Manually boot and run a named service')
 
 		commander.parse process.argv
 
@@ -301,7 +315,7 @@ class module.exports #extends stampede.events
 			cluster.worker.kill()
 			return
 
-		log.debug "Loading service #{name} on worker #{cluster.worker.id}"
+		log.debug "Loading service #{name} on worker #{cluster.worker?.id ? '<unknown>'}"
 
 		if require.cache[service.path]?
 			log.debug "Removing cached service #{name} from require."
