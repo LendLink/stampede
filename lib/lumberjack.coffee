@@ -10,6 +10,19 @@ moment = require 'moment'
 sprintfjs = require 'sprintf-js'
 fs = require 'fs'
 util = require 'util'
+clc = require 'cli-color'
+
+
+
+
+noFormatting = (t) -> t
+
+levelColourMap = 
+	debug:		clc.white
+	info:		clc.whiteBright
+	warning:	clc.yellow
+	error:		clc.redBright
+	critical:	clc.redBright.bold
 
 module.exports = class Lumberjack
 	actions: []
@@ -21,7 +34,7 @@ module.exports = class Lumberjack
 		error:		3
 		critical:	4
 
-	defaultFormat: '%d %t [%L] - %m'
+	defaultFormat: '%d %t [%C] - %m'
 	currentMinLevel: 2
 
 	isDebug: -> @currentMinLevel is 0
@@ -51,12 +64,13 @@ module.exports = class Lumberjack
 		@currentMinLevel = minLevel if minLevel < @currentMinLevel
 
 	formatMessage: (format, level, msg) ->
-		format.replace /%[dtlLm]/g, (code) ->
+		format.replace /%[dtlLCm]/g, (code) ->
 			switch code
 				when '%d' then moment().format('YYYY-MM-DD')
 				when '%t' then moment().format('HH:mm:ss')
 				when '%l' then level
 				when '%L' then level.toUpperCase()
+				when '%C' then (levelColourMap[level.toLowerCase()] ? noFormatting)(level.toUpperCase())
 				when '%m' then msg
 				else code
 

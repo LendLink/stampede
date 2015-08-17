@@ -25,6 +25,7 @@
     "redis": "0.x",
     "inotify": "1.x",
     "cookie-parser": "1.x",
-    "bignumber.js": "1.x"
+    "bignumber.js": "1.x",
+    "cli-color": "1.x"
   }
 }
