@@ -17,13 +17,6 @@ clc = require 'cli-color'
 
 noFormatting = (t) -> t
 
-levelColourMap = 
-	debug:		clc.white
-	info:		clc.whiteBright
-	warning:	clc.yellow
-	error:		clc.redBright
-	critical:	clc.redBright.bold
-
 module.exports = class Lumberjack
 	actions: []
 
@@ -33,6 +26,7 @@ module.exports = class Lumberjack
 		warning: 	2
 		error:		3
 		critical:	4
+		note:		5
 
 	defaultFormat: '%d %t [%C] - %m'
 	currentMinLevel: 2
@@ -63,14 +57,14 @@ module.exports = class Lumberjack
 		@actions.push {file: fileName, minLevel: @levelToValue(minLevel, 'info'), format: overrideFormat}
 		@currentMinLevel = minLevel if minLevel < @currentMinLevel
 
-	formatMessage: (format, level, msg) ->
+	formatMessage: (format, level, msg, codeColour) ->
 		format.replace /%[dtlLCm]/g, (code) ->
 			switch code
 				when '%d' then moment().format('YYYY-MM-DD')
 				when '%t' then moment().format('HH:mm:ss')
 				when '%l' then level
 				when '%L' then level.toUpperCase()
-				when '%C' then (levelColourMap[level.toLowerCase()] ? noFormatting)(level.toUpperCase())
+				when '%C' then (codeColour ? noFormatting)(level.toUpperCase())
 				when '%m' then msg
 				else code
 
@@ -81,7 +75,7 @@ module.exports = class Lumberjack
 		@log level, msg
 
 
-	log: (level, msgList) ->
+	log: (level, msgList, codeColour = noFormatting, textColour = noFormatting) ->
 		levelValue = @levelToValue(level, 'info')
 
 		msg = ''
@@ -91,9 +85,11 @@ module.exports = class Lumberjack
 			else
 				msg += util.inspect(m, { showHidden: false, depth: 4 })
 
+		msg = textColour(msg)
+
 		for action in @actions
 			if action.minLevel <= levelValue
-				fMsg = @formatMessage action.format ? @defaultFormat, level, msg
+				fMsg = @formatMessage action.format ? @defaultFormat, level, msg, codeColour
 
 				if action.console?
 					console.log fMsg
@@ -107,12 +103,14 @@ module.exports = class Lumberjack
 	debug: (msg...) ->
 		@log('debug', msg)
 	info: (msg...) ->
-		@log('info', msg)
+		@log('info', msg, clc.blueBright, clc.blueBright)
 	warn: (msg...) ->
-		@log('warning', msg)
+		@log('warning', msg, clc.yellow, clc.yellow)
 	warning: (msg...) ->
-		@log('warning', msg)
+		@log('warning', msg, clc.yellow, clc.yellow)
 	error: (msg...) ->
-		@log('error', msg)
+		@log('error', msg, clc.red.bold, clc.red)
 	critical: (msg...) ->
-		@log('critical', msg)
+		@log('critical', msg, clc.red.bold.bgYellow, clc.red.bgYellow)
+	note: (msg...) ->
+		@log('note', msg, clc.green, clc.green)

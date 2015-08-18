@@ -382,5 +382,5 @@ class runningService
 			if worker.suicide
 				log.debug "Worker #{worker.id} exited voluntarily."
 			else
-				log.info "Worker #{worker.id} unexpectedly exited (#{code}, #{signal}), restarting."
+				log.error "Worker #{worker.id} unexpectedly exited (#{code}, #{signal}), restarting."
 				@startThreads 1
