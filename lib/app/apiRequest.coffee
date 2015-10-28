@@ -122,6 +122,21 @@ class module.exports
 
 	setInstanceId: (@instanceId) -> @
 
+	publish: (channel, data) ->
+		if @socket.stampede.redisClient[redisDbName]?
+			rc = @socket.stampede.redisClient[redisDbName]
+			rc.publish channel, data, (err) =>
+				if err? then log.error "Error publishing to stream #{channel}: #{err}"
+			return @
+		else
+			rc = @parentApi.getApp().connectRedis(redisDbName)
+			rc.publish channel, data, (err) =>
+				if err? then log.error "Error publishing to stream #{channel}: #{err}"
+			rc.quit()
+
+			return @
+			
+
 	subscribe: (channel, handler, redisDbName = 'redis', data = undefined, append = false) ->
 		unless @isSocket
 			log.error "Trying to subscribe to redis stream #{channel} on db #{redisDbName} on non-websocket connection"
@@ -152,7 +167,7 @@ class module.exports
 			@socket.stampede.messageHandlers[channel] = []
 		@socket.stampede.messageHandlers[channel].push { fn: handler, data: data }
 
-		rc.subscribe channel
+		rc.psubscribe channel
 		@
 
 	subscribeAppend: (channel, handler, redisDbName, data) ->
