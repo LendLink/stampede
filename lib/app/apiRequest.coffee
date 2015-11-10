@@ -276,22 +276,43 @@ class module.exports
 	connectPostgres: (dbName, callback) ->
 		db = @parentApi.getApp().connectPostgres dbName, (err, dbh) => 
 			unless err?
+				dbh.dbBindName = dbName
 				@pgDbList.push dbh
 				@firstSetPgConnection dbName, dbh
 
 			process.nextTick => callback err, dbh
 
 	firstSetPgConnection: (dbName, dbh) ->
-		unless @pgNamed[dbName]? then @pgNamed[dbName] = dbh
+		unless @pgNamed[dbName]?
+			@setPgConnection dbName, dbh
 		@
 
 	setPgConnection: (dbName, dbh) ->
-		@pgNamed[dbName] = dbh
+		@pgNamed[dbName] =
+			counter: 	0
+			dbh:		dbh
 		@
 
-	getPgConnection: (dbName) -> @pgNamed[dbName]
-	getPostgresDbh: (dbName) -> @pgNamed[dbName]
+	getPgConnection: (dbName) ->
+		return undefined unless @pgNamed[dbName]?
+		@pgNamed[dbName].counter++
+		@pgNamed[dbName].dbh
 
+	getPostgresDbh: (dbName) ->
+		return undefined unless @pgNamed[dbName]?
+		@pgNamed[dbName].counter++
+		@pgNamed[dbName].dbh
+
+	releasePgDbh: (dbh) ->
+		dbName = dbh.dbBindName
+		if dbName?
+			if --@pgNamed[dbName].counter <= 0
+				@pgNamed[dbName].dbh.disconnect
+				delete @pgNamed[dbName]
+
+		@pgDbList = (h for h in @pgDbList when h? and h isnt dbh)
+
+		@
 	finish: ->
 		log.debug "Auto-closing DB connections"
 
