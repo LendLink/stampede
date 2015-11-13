@@ -122,7 +122,7 @@ class module.exports
 
 	setInstanceId: (@instanceId) -> @
 
-	publish: (channel, data, redisDbName = 'redis') ->
+	publish: (channel, data, redisDbName = 'redisPub') ->
 		if @socket.stampede.redisClient[redisDbName]?
 			rc = @socket.stampede.redisClient[redisDbName]
 			rc.publish channel, data, (err) =>
