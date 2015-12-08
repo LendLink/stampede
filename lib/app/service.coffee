@@ -41,6 +41,7 @@ class module.exports extends events
 	getConfig: -> @config
 	getApp: -> @parentApp
 	getSettings: (k) -> if k? then @bootConfig.settings[k] else @bootConfig.settings
+	getSetting: (k, defaultValue) -> @bootConfig.settings[k] ? defaultValue
 
 	## Utility functions
 

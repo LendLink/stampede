@@ -58,7 +58,7 @@ class module.exports extends service
 		@socketIo = io.listen @httpServer, { logger: @socketIoLogger, origins: @getSettings('origins') }
 
 		# Set up our express middleware
-		@expressApp.use express.compress()
+		# @expressApp.use express.compress()
 		@expressApp.use cookieParser()
 		@expressApp.use @expressRequest
 		@expressApp.use (req, res, next) =>
