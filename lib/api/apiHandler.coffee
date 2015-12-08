@@ -11,7 +11,7 @@ log = stampede.log
 
 class module.exports extends stampede.route
 	handlerFunctionList:	[								# List of functions that get called in sequence to process the equest
-		'parseParameters', 'loadSession', 'authorise', 'dbPreConnect', 'fetchSQL', 'handle', 'filter'
+		'loadSession', 'parseParameters', 'authorise', 'dbPreConnect', 'fetchSQL', 'handle', 'filter'
 	]
 	
 	# Instance properties
@@ -45,6 +45,8 @@ class module.exports extends stampede.route
 	set: (k, v) ->
 		@validatedParameters[k] = v
 		@
+
+	getSession: -> @requestObject.session
 
 	###
 	# The following functions are used for flow control as each handler finishes

@@ -19,6 +19,8 @@ class module.exports
 	lastRequestId:			0						# Incrementing nonce for requests
 	redisConnection:		undefined				# Our read only / streaming listener connection to Redis
 	redisSubscribers:		undefined				# Hash of subscribers to particular message channels
+	errorChannel:			'error'					# Default channel to use for error messages
+	redisSessionPrefix:		'session:'				# Prefixed to session IDs to convert to a redis key
 	
 	# Class helper to retrieve an instance of ourselves from an existing socket
 	@getFromSocket: (socket) ->
@@ -106,14 +108,18 @@ class module.exports
 				@redisConnection.punsubscribe pattern
 		@
 
+	# Create a new redis connection - the opener is responsible for closing it
+	redisConnect: (name = 'redis') ->
+		@controller.parentApp.connectRedis name
+
 	# We've received a message!
 	messageReceived: (channel, args...) ->
 		log.debug "Message received on channel #{channel}: ", args
 		
 		if channel is 'request'
 			@requestHandler channel, args
-		else if channel is 'session'
-			@sessionHandler channel, args
+		else if channel is 'phpSession'
+			@phpSessionHandler channel, args
 		else if @messageHandler? and typeof @messageHandler is 'function'
 			@messageHandler @, channel, args
 		@
@@ -135,7 +141,7 @@ class module.exports
 	
 	# Send an error message
 	sendError: (channel, error, details) ->
-		log.error "Sending error message "
+		log.error "Sending error message: #{error}"
 		@send channel, 'error', details, error
 
 	# Helper function to look up the remote IP address of the client
@@ -164,19 +170,19 @@ class module.exports
 		# Check we have a request object
 		requestPacket = args.shift()
 		unless requestPacket?
-			@socket.sendError 'error', 'Badly formed request', { originalChannel: channel, arguments: args }
+			@socket.sendError @errorChannel, 'Badly formed request', { originalChannel: channel, arguments: args }
 			return
 
 		# Check we have a request path
 		unless requestPacket.path?
-			@socket.sendError requestPacket.replyTo ? 'error', 'No request path specified', { originalChannel: channel, arguments: args }
+			@socket.sendError requestPacket.replyTo ? @errorChannel, 'No request path specified', { originalChannel: channel, arguments: args }
 			return
 
 		# Does the path match a known route in our router?
 		match = @controller.router.find requestPacket.path
 
 		unless match?
-			@socket.sendError requestPacket.replyTo ? 'error', "Unmatched path #{requestPacket.path}", { originalChannel: channel, arguments: args }
+			@socket.sendError requestPacket.replyTo ? @errorChannel, "Unmatched path #{requestPacket.path}", { originalChannel: channel, arguments: args }
 			return
 
 		# Instance a new request object and pass over handling of the request to that object
@@ -189,11 +195,37 @@ class module.exports
 		route.setRequestParameters args
 		route.processRequest req, (err) =>
 			if err?
-				@sendError requestPacket.replyTo ? 'error', "Route handler error for #{requestPacket.path}: #{err}", { requestObject: req }
+				@sendError requestPacket.replyTo ? @errorChannel, "Route handler error for #{requestPacket.path}: #{err}", { requestObject: req }
 
 			req.finish()
 
 
 	# Handle an inbound session authorisation request
-	requestSession: (channel, args) ->
+	phpSessionHandler: (channel, args) ->
+		# Convenience for if we're sent a string instead of an object for the session request
+		if stampede._.isString args
+			args = { sessionId: args }
 
+		# Check we have a sessionId in our request object
+		unless args.sessionId? and stampede._.isString(args.sessionId)
+			return @sendError @errorChannel, "setSession error: invalid session ID", { sentId: args.sessionId }
+
+		# Connect to redis and retrieve the session information
+		rc = @connectRedis()
+		rc.get @redisSessionPrefix + args.sessionId, (err, rawData) =>
+			# Kill our redis connection as it's not needed any more
+			rc.quit()
+
+			if err?
+				return @sendError @errorChannel, "setSession error retrieving session: #{err}", { sentId: args.sessionId }
+
+			unless rawData?
+				return @sendError @errorChannel, "setSession error: session not found", { sentId: args.sessionId }
+
+			sessionData = JSON.parse rawData
+
+			@session.setId args.sessionId
+			@session.setFromPhp sessionData
+
+			if @onSession?
+				@onSession()
