@@ -241,7 +241,7 @@ class module.exports #extends stampede.events
 		# Did we find out database definition?
 		return process.nextTick(=> callback("Database connection '#{dbName}' is not defined.")) unless db?
 
-		log.debug "Connecting to database #{db}"
+		log.debug "Connecting to database #{dbName}"
 		stampede.dba.connect db, (err, dbh) =>
 			callback err, dbh
 
@@ -307,13 +307,11 @@ class module.exports #extends stampede.events
 		service = @environmentFile.services[name]
 		unless service?
 			log.critical "Service '#{name}' not defined."
-			cluster.worker.kill()
-			return
+			process.exit()
 
 		unless service.path?
 			log.critical "Service '#{name}' does not specify a library path."
-			cluster.worker.kill()
-			return
+			process.exit()
 
 		log.debug "Loading service #{name} on worker #{cluster.worker?.id ? '<unknown>'}"
 
@@ -382,5 +380,5 @@ class runningService
 			if worker.suicide
 				log.debug "Worker #{worker.id} exited voluntarily."
 			else
-				log.error "Worker #{worker.id} unexpectedly exited (#{code}, #{signal}), restarting."
+				log.error "Worker #{worker.id} unexpectedly exited for service #{@name} (#{code}, #{signal}), restarting."
 				@startThreads 1

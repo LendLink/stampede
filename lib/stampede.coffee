@@ -21,6 +21,9 @@ exports.router = require './router'
 exports.route = exports.router.route
 exports.paramDefinition = require './paramDefinition'
 exports.autoTidy = require './autoTidy'
+exports.api =
+	apiService:			require './api/apiService'
+	handler:			require './api/apiHandler'
 
 exports._ = exports.lodash = require 'lodash'
 exports.mocha = require 'mocha'
