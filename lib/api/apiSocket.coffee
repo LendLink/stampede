@@ -202,6 +202,9 @@ class module.exports
 
 	# Handle an inbound session authorisation request
 	phpSessionHandler: (channel, args) ->
+		# We're only interested in the first argument
+		args = args[0]
+
 		# Convenience for if we're sent a string instead of an object for the session request
 		if stampede._.isString args
 			args = { sessionId: args }
@@ -211,8 +214,8 @@ class module.exports
 			return @sendError @errorChannel, "setSession error: invalid session ID", { sentId: args.sessionId }
 
 		# Connect to redis and retrieve the session information
-		rc = @connectRedis()
-		rc.get @redisSessionPrefix + args.sessionId, (err, rawData) =>
+		rc = @redisConnect()
+		rc.get (@redisSessionPrefix + args.sessionId), (err, rawData) =>
 			# Kill our redis connection as it's not needed any more
 			rc.quit()
 
