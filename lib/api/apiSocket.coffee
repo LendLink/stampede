@@ -234,4 +234,3 @@ class module.exports
 
 			if onSession?
 				@emit channel, onSession({'sessionFound': true})
-				@onSession()
