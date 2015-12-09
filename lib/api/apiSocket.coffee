@@ -192,7 +192,7 @@ class module.exports
 		# Create a new route object
 		route = new (Object.getPrototypeOf(match.route).constructor)
 		route.setRouteParameters match.vars
-		route.setRequestParameters args
+		route.setRequestParameters requestPacket
 		route.processRequest req, (err) =>
 			if err?
 				@sendError requestPacket.replyTo ? @errorChannel, "Route handler error for #{requestPacket.path}: #{err}", { requestObject: req }
@@ -202,6 +202,8 @@ class module.exports
 
 	# Handle an inbound session authorisation request
 	phpSessionHandler: (channel, args) ->
+		# Check for an onSession found callback
+		if args[1]? then onSession = args[1]
 		# We're only interested in the first argument
 		args = args[0]
 
@@ -230,5 +232,6 @@ class module.exports
 			@session.setId args.sessionId
 			@session.setFromPhp sessionData
 
-			if @onSession?
+			if onSession?
+				@emit channel, onSession({'sessionFound': true})
 				@onSession()
