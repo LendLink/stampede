@@ -136,7 +136,9 @@ class module.exports
 		obj = { type: type, data: data }
 		if error? then obj.error = error
 
-		@socket.emit channel, obj
+		channel = 'globalError' if channel is 'error'
+
+		if @socket? and channel? then @socket.emit channel, obj
 		@
 	
 	# Send an error message
