@@ -19,6 +19,9 @@ class module.exports
 	lastRequestId:			0						# Incrementing nonce for requests
 	redisConnection:		undefined				# Our read only / streaming listener connection to Redis
 	redisSubscribers:		undefined				# Hash of subscribers to particular message channels
+	redisBroadcast:			undefined				# Connection to Redis used to broadcast messages, auto closed if inactive
+	redisBroadcastInactiveTime:	10					# Numbert of seconds after which to auto close the broadcast channel
+	redisBroadcastTimer:	undefined				# The timer used to enact the timeout
 	errorChannel:			'error'					# Default channel to use for error messages
 	redisSessionPrefix:		'session:'				# Prefixed to session IDs to convert to a redis key
 	
@@ -78,6 +81,8 @@ class module.exports
 
 		# Disconnect from redis
 		@redisConnection.quit()
+		if @redisBroadcastTimer? then clearTimeout @redisBroadcastTimer
+		if @redisBroadcast then @redisBroadcast.quit()
 
 		# Delete the reference to ourselves from the socket to ensure no circular references
 		log.debug "Socket from #{@remoteIp()} has disconnected"
@@ -104,13 +109,30 @@ class module.exports
 				delete @redisSubscribers[pattern]
 				@redisConnection.punsubscribe pattern
 		else
-				delete @redisSubscribers[pattern]
-				@redisConnection.punsubscribe pattern
+			delete @redisSubscribers[pattern]
+			@redisConnection.punsubscribe pattern
 		@
 
 	# Create a new redis connection - the opener is responsible for closing it
 	redisConnect: (name = 'redis') ->
 		@controller.parentApp.connectRedis name
+
+	# Broadcast a message via redis
+	redisPublish: (channel, message) ->
+		# Make sure we have a connection
+		unless @redisBroadcast?
+			@redisBroadcast = @redisConnect()
+
+		# Send our message
+		@redisBroadcast.publish channel, message
+
+		# Reset the disconnect timer
+		if @redisBroadcastTimer? then clearTimeout @redisBroadcastTimer
+		@redisBroadcastTimer = setTimer =>
+			# Disconnect from redis
+			if @redisBroadcast? then @redisBroadcast.quit()
+			@redisBroadcast = undefined
+		, @redisBroadcastInactiveTime * 1000
 
 	# We've received a message!
 	messageReceived: (channel, args...) ->
