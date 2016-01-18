@@ -37,6 +37,8 @@ class module.exports
 
 	getSocket: -> @socket
 
+	getReplyTo: -> @replyTo
+
 	finish: ->
 		console.log "apiRequest.finish() called"
 

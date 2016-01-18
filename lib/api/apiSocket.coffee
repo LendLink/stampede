@@ -14,7 +14,7 @@ class module.exports
 	controller:				undefined				# Reference to the 
 	socket:					undefined				# The socket to which we're attached
 	session:				undefined				# Our session object for this connection
-	messagesHandler:		undefined				# Function to call whenever we receive a message
+	messageHandler:			undefined				# Function to call whenever we receive a message
 	activeRequests:			undefined				# Object containing all active request objects
 	lastRequestId:			0						# Incrementing nonce for requests
 	redisConnection:		undefined				# Our read only / streaming listener connection to Redis
@@ -42,9 +42,14 @@ class module.exports
 
 		# Connect to redis
 		@redisConnection = @controller.parentApp.connectRedis 'redis'
-		@redisConnection.on 'pmessage', (pattern, channel, message) ->
+		@redisConnection.on 'pmessage', (pattern, channel, message) =>
+			# Auto decode JSON objects
+			try
+				message = JSON.parse message
+
+			# Forward to each of our handlers
 			for handler in @redisSubscribers[pattern] ? []
-				handler(channel, message, pattern)
+				handler(@, channel, message, pattern)
 
 	attachToSocket: ->
 		# Modify the socket onevent method to include a call to our catchall event handler
@@ -123,12 +128,16 @@ class module.exports
 		unless @redisBroadcast?
 			@redisBroadcast = @redisConnect()
 
+		# Automatically serialise the message
+		if stampede._.isObject message
+			message = JSON.stringify message
+
 		# Send our message
 		@redisBroadcast.publish channel, message
 
 		# Reset the disconnect timer
 		if @redisBroadcastTimer? then clearTimeout @redisBroadcastTimer
-		@redisBroadcastTimer = setTimer =>
+		@redisBroadcastTimer = setTimeout =>
 			# Disconnect from redis
 			if @redisBroadcast? then @redisBroadcast.quit()
 			@redisBroadcast = undefined
