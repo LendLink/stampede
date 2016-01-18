@@ -143,7 +143,14 @@ class module.exports
 		else if channel is 'phpSession'
 			@phpSessionHandler channel, args
 		else if @messageHandler? and typeof @messageHandler is 'function'
-			@messageHandler @, channel, args
+			try
+				argsJson = JSON.parse args
+				jsonError = undefined
+			catch e
+				argsJson = undefined
+				jsonError = e
+
+			@messageHandler @, channel, argsJson, args, jsonError
 		@
 
 	# Set our message handling function

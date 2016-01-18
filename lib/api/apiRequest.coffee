@@ -35,6 +35,8 @@ class module.exports
 		@socket.activeRequests[@id] = @
 		@
 
+	getSocket: -> @socket
+
 	finish: ->
 		console.log "apiRequest.finish() called"
 
