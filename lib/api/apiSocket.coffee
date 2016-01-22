@@ -135,6 +135,12 @@ class module.exports
 			@redisConnection.punsubscribe pattern
 		@
 
+	# Unsubscribe from all redis pub/sub streams
+	redisUnsubscribeAll: ->
+		@redisSubscribers = {}
+		@redisConnection.punsubscribe '*'
+		@
+
 	# Create a new redis connection - the opener is responsible for closing it
 	redisConnect: (name = 'redis') ->
 		@controller.parentApp.connectRedis name
