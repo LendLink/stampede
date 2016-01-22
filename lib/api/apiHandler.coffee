@@ -29,6 +29,8 @@ class module.exports extends stampede.route
 		@requestParameters = {}
 		@validatedParameters = {}
 
+		@parameters ?= {}
+
 	# Set the route parameters
 	setRouteParameters: (@routeParameters) -> @
 

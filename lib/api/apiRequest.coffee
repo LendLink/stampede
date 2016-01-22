@@ -40,8 +40,6 @@ class module.exports
 	getReplyTo: -> @replyTo
 
 	finish: ->
-		console.log "apiRequest.finish() called"
-
 		# Flush our output messages
 		@flushQueue()
 

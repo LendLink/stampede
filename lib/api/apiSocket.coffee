@@ -32,13 +32,22 @@ class module.exports
 	constructor: (@controller, @socket) ->
 		# Initialise our properties
 		@activeRequests = {}
-		@redisSubscribers = {}
 
 		# Attach ourselves to the socket itself
 		@attachToSocket()
 
 		# Create a new session
 		@session = new socketSession()
+
+		# Connect to redis
+		@redisReconnect()
+
+	redisReconnect: ->
+		# If we have an existing connection then disconnect
+		if @redisConnection? then @redisConnection.quit()
+
+		# Reset our list of subscribers
+		@redisSubscribers = {}
 
 		# Connect to redis
 		@redisConnection = @controller.parentApp.connectRedis 'redis'
@@ -93,6 +102,14 @@ class module.exports
 		log.debug "Socket from #{@remoteIp()} has disconnected"
 		delete @socket.stampedeApi
 		delete @socket
+		@
+
+	# Unsubscribe from all channels
+	redisUnsubscribeAll: ->
+		# Short cut, disconnect from redis and open a new connection
+		@redisReconnect()
+
+		# Return self
 		@
 
 	# Subscribe a callback function to a redis channel or pattern
