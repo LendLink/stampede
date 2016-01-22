@@ -109,26 +109,29 @@ class module.exports extends stampede.route
 
 	# Parse parameters - preprocess named parameters to validate the inputs
 	parseParameters: (request) ->
-		# Iterate through each of our parameters
-		stampede.async.eachSeries Object.keys(@parameters), (k, next) =>
-			# Retrieve the parameter definition
-			p = @parameters[k]
+		if @parameters?
+			# Iterate through each of our parameters
+			stampede.async.eachSeries Object.keys(@parameters), (k, next) =>
+				# Retrieve the parameter definition
+				p = @parameters[k]
 
-			# Get the value we wish to parse
-			val = @routeParameters[k] ? @requestParameters[k]
+				# Get the value we wish to parse
+				val = @routeParameters[k] ? @requestParameters[k]
 
-			# Call the validator function to check the value
-			p.doCheck k, val, @, (checkError, validatedValue) =>
-				if checkError?
-					next checkError
+				# Call the validator function to check the value
+				p.doCheck k, val, @, (checkError, validatedValue) =>
+					if checkError?
+						next checkError
+					else
+						@set k, validatedValue
+						next()
+			, (err) =>
+				if err?
+					@error err
 				else
-					@set k, validatedValue
-					next()
-		, (err) =>
-			if err?
-				@error err
-			else
-				@done()
+					@done()
+		else
+			@done()
 
 	# Load the session, if any, from the socket to refresh the latest session data
 	loadSession: (request) ->
