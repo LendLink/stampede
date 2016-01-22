@@ -121,6 +121,13 @@ class module.exports
 		@redisSubscribers[pattern].push callback
 		@
 
+	# Subscribe a callback function to a redis channel or pattern only if we're not already subscribed
+	redisSubscribeOnce: (pattern, callback) ->
+		if @redisSubscribers[pattern]? and @redisSubscribers[pattern].length > 0
+			return @
+
+		@redisSubscribe pattern, callback
+
 	# Unsubscribe from a redis pub/sub stream.  If a callback is supplied just unsubscribe that one callback.
 	redisUnsubscribe: (pattern, callback) ->
 		return unless @redisSubscribers[pattern]?
@@ -162,8 +169,6 @@ class module.exports
 
 	# We've received a message!
 	messageReceived: (channel, args...) ->
-		log.debug "Message received on channel #{channel}: ", args
-		
 		if channel is 'request'
 			@requestHandler channel, args
 		else if channel is 'phpSession'
