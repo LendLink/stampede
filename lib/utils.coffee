@@ -200,9 +200,8 @@ class exports.idIndex
 		@index
 
 
-# Convert HSL to RGB.  H between 0 and 360, S between 0 and 1, L between 0 and 1; RGB values between 0 and range (defaults to 255)
+# Convert HSL to RGB.  HSL between 0 and 1; RGB values between 0 and range (defaults to 255)
 exports.hsl = (h, s, l, range = 255) ->
-	h /= 360
 	if s is 0
 		r = g = b = l			# Achromatic, so just use the lightness
 	else
