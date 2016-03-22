@@ -29,12 +29,21 @@ class module.exports
 		if sessionData.id?
 			@userId = sessionData.id
 			@loggedIn = true
+		else
+			@userId = undefined
+			@loggedIn = false
 
-		@roles = sessionData.roles ? []
+		@roles = {}
+		for r in sessionData.roles ? []
+			@roles[r] = true
+
 		@
+
+	hasRole: (roleName) -> @roles.ROLE_SUPER_ADMIN ? @roles[roleName] ? false
 
 	getUserId: ->
 		@userId
 
 	finish: ->
 		@
+

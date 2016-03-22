@@ -198,3 +198,38 @@ class exports.idIndex
 
 	allItems: ->
 		@index
+
+
+# Convert HSL to RGB.  H between 0 and 360, S between 0 and 1, L between 0 and 1; RGB values between 0 and range (defaults to 255)
+exports.hsl = (h, s, l, range = 255) ->
+	h /= 360
+	if s is 0
+		r = g = b = l			# Achromatic, so just use the lightness
+	else
+		hue2rgb = (p, q, t) ->
+			if t < 0 then t += 1
+			if t > 1 then t -= 1
+			if t < 1/6 then return p + (q - p) * 6 * t
+			if t < 1/2 then return q
+			if t < 2/3 then return p + (q - p) * (2/3 - t) * 6
+			return p
+
+		q = if l < 0.5 then l * (1 + s) else l + s - l * s
+		p = 2 * l - q
+		r = hue2rgb p, q, h + 1/3
+		g = hue2rgb p, q, h
+		b = hue2rgb p, q, h - 1/3
+
+	return [Math.round(r * range), Math.round(g * range), Math.round(b * range)]
+
+# Same as above but output to hex code
+exports.hslToHex = (h, s, l) ->
+	[r, g, b] = exports.hsl h, s, l
+
+	convertToHex = (v) ->
+		hex = v.toString 16
+		if hex.length is 1 then '0'+hex else hex
+
+	"##{convertToHex(r)}#{convertToHex(g)}#{convertToHex(b)}"
+
+
