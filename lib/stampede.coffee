@@ -18,6 +18,7 @@ exports.config = require './config'
 exports.app = require './app'
 exports.dbService = require './dbService'
 exports.router = require './router'
+exports.report = require './reports/report'
 exports.route = exports.router.route
 exports.paramDefinition = require './paramDefinition'
 exports.autoTidy = require './autoTidy'

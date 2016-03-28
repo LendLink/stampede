@@ -18,7 +18,7 @@
     "pg": "2.x",
     "express": "3.x",
     "sprintf-js": "0.x",
-    "lodash": "2.x",
+    "lodash": "4.x",
     "socket.io": "1.x",
     "socket.io-client": "1.x",
     "commander": "2.x",
@@ -26,6 +26,7 @@
     "inotify": "1.x",
     "cookie-parser": "1.x",
     "bignumber.js": "1.x",
-    "cli-color": "1.x"
+    "cli-color": "1.x",
+    "excel4node": "0.x"
   }
 }

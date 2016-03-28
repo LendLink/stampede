@@ -222,13 +222,13 @@ exports.hsl = (h, s, l, range = 255) ->
 	return [Math.round(r * range), Math.round(g * range), Math.round(b * range)]
 
 # Same as above but output to hex code
-exports.hslToHex = (h, s, l) ->
+exports.hslToHex = (h, s, l, includeHash = false) ->
 	[r, g, b] = exports.hsl h, s, l
 
 	convertToHex = (v) ->
 		hex = v.toString 16
 		if hex.length is 1 then '0'+hex else hex
 
-	"##{convertToHex(r)}#{convertToHex(g)}#{convertToHex(b)}"
+	"#{if includeHash then '#' else ''}#{convertToHex(r)}#{convertToHex(g)}#{convertToHex(b)}"
 
 
