@@ -241,7 +241,7 @@ class module.exports #extends stampede.events
 		# Did we find out database definition?
 		return process.nextTick(=> callback("Database connection '#{dbName}' is not defined.")) unless db?
 
-		safeStr = db.replace(/:[^@]+@/, ':xxx@')
+		safeStr = db.replace(/:[^@:]+@/, ':xxx@')
 
 		log.debug "Connecting to database #{dbName} - #{safeStr}"
 		stampede.dba.connect db, (err, dbh) =>
