@@ -38,7 +38,7 @@ class module.exports extends service
 
 	connectDb: (dbName) ->
 		log.debug "Connecting to database '#{dbName}'"
-		if @dbHandles[dbName]? 
+		if @dbHandles[dbName]?
 			@dbHandles[dbName].dbh.disconnect
 			delete @dbHandles[dbName]
 
