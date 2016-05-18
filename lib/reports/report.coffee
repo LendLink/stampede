@@ -17,15 +17,16 @@ Our core report class which is the core export of this library
 class module.exports
 	styles: 				undefined
 	tables:					undefined
+	options:				undefined
 
-	constructor: ->
+	constructor: (@options = {}) ->
 		@styles = new styleManager()
 		@tables = {}
 
 	# Return (or create if it doesn't exit) a new named table of data
-	table: (name) ->
+	table: (name, options) ->
 		unless @tables[name]?
-			@tables[name] = new tableClass(name)
+			@tables[name] = new tableClass(name, options)
 
 		@tables[name]
 

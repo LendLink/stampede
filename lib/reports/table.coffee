@@ -17,6 +17,16 @@ class columnClass
 		style = @options.headerStyle ? 'header'
 		ws.Cell(1, columnNumber).String(@name).Style(styles.getExcel(style))
 
+		if @options.width?
+			ws.Column(columnNumber).Width @options.width
+		else
+			width = @name.length * 0.91 + 2
+			if width < 10.0 then width = 10.0
+			ws.Column(columnNumber).Width width
+
+		if @options.filter? and @options.filter is true
+			ws.Row(1).Filter(columnNumber, columnNumber)
+
 	renderExcelData: (ws, styles, rowData, x, y) ->
 		# Calculate the data to write to the cell
 		data = undefined
@@ -63,8 +73,9 @@ class module.exports
 	columns:				undefined
 	rowData:				undefined
 	name:					undefined
+	options:				undefined
 
-	constructor: (@name) ->
+	constructor: (@name, @options = {}) ->
 		@columns = []
 		@rowData = []
 
@@ -101,9 +112,14 @@ class module.exports
 	renderExcel: (xlsx, styles, done) ->
 		ws = xlsx.WorkSheet @name, {}
 
+		@options.freezeHeader ?= true
+		if @options.freezeHeader
+			ws.Row(1).Freeze()
+
 		stampede.async.series [
 			(next) => @renderExcelHeaders ws, styles, next
 			(next) => @renderExcelData ws, styles, next
+			(next) => @renderExcelFinalise ws, styles, next
 		], done
 
 	renderExcelHeaders: (ws, styles, done) ->
@@ -122,3 +138,9 @@ class module.exports
 		x = 0
 		for column in @columns
 			column.renderExcelData ws, styles, rowData, ++x, y
+
+	renderExcelFinalise: (ws, styles, done) ->
+		if @options.autoFilter?
+			ws.Row(1).Filter()
+
+		done()

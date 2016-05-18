@@ -10,7 +10,7 @@ express = require 'express'
 http = require 'http'
 io = require 'socket.io'
 fs = require 'fs'
-Inotify = require('inotify').Inotify
+#Inotify = require('inotify').Inotify
 
 cookieParser = require 'cookie-parser'
 
@@ -45,8 +45,8 @@ class module.exports extends service
 		@router = new stampede.router()
 		@handlers = {}
 
-		if app.isDebug()
-			@inotify = new Inotify()
+		#if app.isDebug()
+			#@inotify = new Inotify()
 
 
 	start: (done) ->

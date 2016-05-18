@@ -28,8 +28,8 @@ class module.exports
 			objList = (@styles[k] ? {} for k in nameList)
 			merged = stampede._.defaultsDeep.apply(@, objList.reverse())
 
-			console.log nameList
-			console.log merged
+			# console.log nameList
+			# console.log merged
 
 			# Generate our excel style
 			style = @excelWorkBook.Style()
@@ -44,8 +44,8 @@ class module.exports
 
 				if merged.Font.Alignment?
 					if merged.Font.Alignment.Vertical? then style.Font.Alignment.Vertical(merged.Font.Alignment.Vertical)
-					if merged.Font.Alignment.Horizontal? then style.Font.Alignment.Vertical(merged.Font.Alignment.Horizontal)
-					if merged.Font.Alignment.Rotation? then style.Font.Alignment.Vertical(merged.Font.Alignment.Rotation)
+					if merged.Font.Alignment.Horizontal? then style.Font.Alignment.Horizontal(merged.Font.Alignment.Horizontal)
+					if merged.Font.Alignment.Rotation? then style.Font.Alignment.Rotation(merged.Font.Alignment.Rotation)
 
 			if merged.Number?
 				if merged.Number.Format? then style.Number.Format(merged.Number.Format)
@@ -54,15 +54,17 @@ class module.exports
 				if merged.Fill.Colour? then style.Fill.Color(@colourLibrary[merged.Fill.Colour] ? merged.Fill.Colour)
 				if merged.Fill.Pattern? then style.Fill.Pattern(merged.Fill.Pattern)
 
-			if merged.Border?
-				border = merged.Border
+			else if merged.Border?
+				border = {}
 				if merged.Border.setBorder?
 					border =
 						top: merged.Border.setBorder
 						bottom: merged.Border.setBorder
 						left: merged.Border.setBorder
 						right: merged.Border.setBorder
-				merged.Border border
+
+				border = stampede._.defaults border, merged.Border
+				style.Border border
 
 			# Save our style
 			@excelStyleCache[name] = style
@@ -95,10 +97,18 @@ class module.exports
 					Size:						11
 					Colour:						'default'
 					WrapText:					true
+				Border:
+					setBorder:
+						style:						'thin'
 
 			header:
 				Font:
 					Colour:						'headerForeground'
+					Alignment:
+						Horizontal:				'center'
+				Fill:
+					Colour:						'headerBackground'
+					Pattern:					'solid'
 
 
 			left:
@@ -115,14 +125,6 @@ class module.exports
 				Font:
 					Alignment:
 						Horizontal:				'left'
-
-			border:
-				setBorder:
-					style:						'thin'
-				top:						null
-				bottom:						null
-				left:						null
-				right:						null
 
 			integer:
 				Number:
