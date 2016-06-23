@@ -162,3 +162,35 @@ class module.exports extends stampede.route
 	# Get a database connection from the preconnected pool
 	getDatabaseConnection: (name) ->
 		@requestObject.getDatabaseConnection(name)
+
+
+	###
+	Check authorisation
+	###
+	authorise: (request) ->
+		# has session been defined on our apiHandler and require login?
+		if @session? and @session.loggedIn? and @session.loggedIn == true
+			# is user logged in?
+			if @getSession().loggedIn == true
+				# does it require a role
+				if @session.roles?
+					hasRole = false
+					permittedRoles = @session.roles
+					if typeof permittedRoles == 'string' then permittedRoles = [permittedRoles]
+					# does user have role?
+					stampede.async.each permittedRoles, (role, next) =>
+						# if role found
+						if @getSession().hasRole(role)
+							hasRole = true
+						next()
+					, (err) =>
+						if hasRole
+							@done()
+						else
+							@error 'API Error', { code: 401, detail: 'Unauthorized' }
+				else
+					@done()
+			else
+				@error 'API Error', { code: 401, detail: 'Unauthorized' }
+		else
+			@done()
