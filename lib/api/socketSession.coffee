@@ -34,8 +34,13 @@ class module.exports
 			@loggedIn = false
 
 		@roles = {}
-		for r in sessionData.roles ? []
-			@roles[r] = true
+		# check in case weird things with session roles being an object, instead of an array
+		if typeof sessionData.roles == 'object'
+			for i, r of sessionData.roles
+				@roles[r] = true
+		else
+			for r in sessionData.roles ? []
+				@roles[r] = true
 
 		@
 
