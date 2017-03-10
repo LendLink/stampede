@@ -103,9 +103,14 @@ class exports.connection
 			@cacheObj = new exports.cache()
 		@clearLog()
 		@connect(dbh, done)
+		@setPgDateType()
 
 	setName: (@name) -> @
 	getName: -> @name
+
+	setPgDateType: ->
+  		pg.types.setTypeParser 1114, (stringValue) ->
+    		moment.utc(stringValue).toISOString()
 
 	clone: (callback, cache) ->
 		exports.connection.connect @conString, callback, (cache ? @cacheObj)
