@@ -109,8 +109,15 @@ class exports.connection
 	getName: -> @name
 
 	setPgDateType: ->
-  		pg.types.setTypeParser 1114, (stringValue) ->
-    		moment.utc(stringValue).toISOString()
+  		# timestamp without timezone
+		pg.types.setTypeParser 1114, (stringValue) ->
+			moment.utc(stringValue).toISOString()
+		# timestamp with timezone
+		pg.types.setTypeParser 1184, (stringValue) ->
+			moment(stringValue).toISOString()
+		# date
+		pg.types.setTypeParser 1082, (stringValue) ->
+			moment.utc(stringValue).toISOString()
 
 	clone: (callback, cache) ->
 		exports.connection.connect @conString, callback, (cache ? @cacheObj)
