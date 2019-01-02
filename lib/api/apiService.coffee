@@ -5,7 +5,12 @@ API application service to fit into the stampede app framework.
 ###
 
 stampede = require '../stampede'
-Inotify = require('inotify').Inotify
+
+try
+	Inotify = require('inotify').Inotify
+catch er
+	Inotify = null
+
 express = require 'express'
 http = require 'http'
 io = require 'socket.io'
@@ -47,7 +52,8 @@ class module.exports extends service
 
 		if app.isDebug() or @getSetting('developerMode', false) is true
 			@devMode = true
-			@inotify = new Inotify()
+			if Inotify
+				@inotify = new Inotify()
 
 	# Called when the service first starts
 	start: (done) ->
@@ -138,7 +144,7 @@ class module.exports extends service
 					# Scan through the handler for routes that can be added to the router
 					for name, route of h when stampede._.isFunction(route)
 						log.debug "Checking potential route #{name} in file #{localPath}"
-						
+
 						# Temporarily instance the route
 						i = new route()
 						if i instanceof stampede.api.handler
